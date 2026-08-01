@@ -1,0 +1,31 @@
+{
+  "accuracy": 89.25,
+  "precision": 93.04,
+  "recall": 84.77,
+  "f1": 88.71,
+  "confusion_matrix": [
+    [
+      9436,
+      634
+    ],
+    [
+      1523,
+      8477
+    ]
+  ],
+  "rf_accuracy": 89.76,
+  "svm_accuracy": 88.49,
+  "lr_accuracy": 88.49,
+  "hybrid_accuracy": 89.25,
+  "dataset_size": 100350,
+  "train_samples": 80280,
+  "test_samples": 20070,
+  "malicious_count": 50000,
+  "benign_count": 50350,
+  "feature_count": 28,
+  "ensemble": "Random Forest + Calibrated SVM (Soft Voting)",
+  "ml_guards": "allowlist + 95% threshold + RF/SVM agree + rich domain features",
+  "dropped_features": [
+    "has_https"
+  ]
+}

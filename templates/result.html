@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Detection Result — CyberScan{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% set rf = model_votes.random_forest %}
+{% set lr = model_votes.svm if model_votes.svm is defined else model_votes.logistic_regression %}
+{% set hy = model_votes.hybrid %}
+{% set vt = virustotal if virustotal is defined else {} %}
+{# final_label from predict.py (ML + VirusTotal) — hero/center must not use ML-only label #}
+{% set flabel = final_label|default(label, true) %}
+{% set verdict_class = 'malicious' if flabel == 'Malicious' else 'benign' %}
+{% set display_label = 'MALICIOUS' if flabel == 'Malicious' else 'SAFE' %}
+{% set center_label = 'Malicious' if flabel == 'Malicious' else 'Benign' %}
+{% set raw_center = malicious_probability if flabel == 'Malicious' else benign_probability %}
+{% set center_pct = raw_center if raw_center and raw_center >= 1 else (confidence if confidence and confidence >= 1 else 100) %}
+
+<main class="page-shell">
+  <div class="result-page {{ verdict_class }}">
+    <header class="result-hero">
+      <div class="verdict-glow {{ verdict_class }}">{{ display_label }}</div>
+      <div class="result-url">{{ url }}</div>
+      <div class="result-subtype">{{ subtype }} · Risk: {{ risk_level }}</div>
+    </header>
+
+    <section class="panel gauge-card gauge-hero {{ verdict_class }}">
+      <div class="scanning-line" aria-hidden="true"></div>
+      <h2 class="panel-title">Confidence</h2>
+      <div class="donut-stage">
+        <div class="donut-wrap {{ verdict_class }}">
+          <canvas id="probDonut" width="200" height="200"></canvas>
+          <div class="donut-center">
+            <span class="donut-pct mono">{{ '%.0f'|format(center_pct) }}%</span>
+            <span class="donut-label">{{ center_label }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="confidence-bars">
+        <div class="conf-row">
+          <div class="conf-meta">
+            <span>Malicious</span>
+            <span class="mono">{{ '%.2f'|format(malicious_probability) }}%</span>
+          </div>
+          <div class="conf-track">
+            <div class="conf-fill red" data-width="{{ malicious_probability }}"></div>
+          </div>
+        </div>
+        <div class="conf-row">
+          <div class="conf-meta">
+            <span>Benign</span>
+            <span class="mono">{{ '%.2f'|format(benign_probability) }}%</span>
+          </div>
+          <div class="conf-track">
+            <div class="conf-fill green" data-width="{{ benign_probability }}"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="result-grid">
+
+      <section class="panel vt-card {% if not vt.get('available') %}vt-card-unavailable{% endif %}">
+        <div class="vt-badge">VirusTotal</div>
+        {% if vt.get('available') %}
+        <div class="vt-score">
+          <span class="vt-big mono">{{ vt.positives }}</span>
+          <span class="vt-of">/ {{ vt.total_engines }} engines flagged</span>
+        </div>
+        <div class="vt-pills">
+          <span class="tag tag-red">Malicious {{ vt.malicious }}</span>
+          <span class="tag tag-yellow">Suspicious {{ vt.suspicious }}</span>
+          <span class="tag tag-green">Clean {{ vt.harmless }}</span>
+        </div>
+        <ul class="vt-engines">
+          <li><span>Malicious engines</span><span class="tag tag-red mono">{{ vt.malicious }}</span></li>
+          <li><span>Suspicious engines</span><span class="tag tag-yellow mono">{{ vt.suspicious }}</span></li>
+          <li><span>Harmless engines</span><span class="tag tag-green mono">{{ vt.harmless }}</span></li>
+          <li><span>Undetected</span><span class="tag mono">{{ vt.undetected }}</span></li>
+        </ul>
+        {% if vt.permalink %}
+        <p class="vt-note"><a href="{{ vt.permalink }}" target="_blank" rel="noopener noreferrer">Open full VirusTotal report</a></p>
+        {% endif %}
+        {% else %}
+        <div class="vt-unavailable-card" role="status">
+          <div class="vt-unavailable-banner">VirusTotal Unavailable</div>
+          <p class="vt-unavailable-text">
+            VirusTotal check unavailable — using ML result only
+          </p>
+        </div>
+        {% endif %}
+
+        {% if correction_note %}
+        <div class="correction-banner">
+          <strong>Final decision:</strong> {{ correction_note }}
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="panel xai-card">
+        <h2 class="panel-title">Feature Importance</h2>
+        <p class="panel-desc">Top lexical signals that influenced the ML model.</p>
+        <div class="xai-list">
+          {% for item in explanation %}
+          {% set imp_pct = (item.importance * 100) if item.importance <= 1 else item.importance %}
+          <div class="xai-item">
+            <div class="xai-meta">
+              <span class="xai-name mono">{{ item.feature }}</span>
+              <span class="xai-val mono">{{ '%.3f'|format(item.importance) if item.importance <= 1 else '%.1f'|format(item.importance) ~ '%' }}</span>
+            </div>
+            <div class="xai-track">
+              <div class="xai-fill" data-width="{{ imp_pct }}"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2 class="panel-title">Hybrid Model Decision</h2>
+      <table class="decision-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Verdict</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Random Forest</td>
+            <td><span class="tag {{ 'tag-red' if rf.label == 'Malicious' else 'tag-green' }}">{{ rf.label }}</span></td>
+            <td class="mono">{{ '%.2f'|format(rf.confidence) }}%</td>
+          </tr>
+          <tr>
+            <td>SVM (RBF)</td>
+            <td><span class="tag {{ 'tag-red' if lr.label == 'Malicious' else 'tag-green' }}">{{ lr.label }}</span></td>
+            <td class="mono">{{ '%.2f'|format(lr.confidence) }}%</td>
+          </tr>
+          <tr class="decision-final">
+            <td>Hybrid (Soft Vote)</td>
+            <td><span class="tag {{ 'tag-red' if hy.label == 'Malicious' else 'tag-green' }}">{{ hy.label }}</span></td>
+            <td class="mono">{{ '%.2f'|format(hy.confidence) }}%</td>
+          </tr>
+          <tr class="decision-final">
+            <td>Final (ML + VirusTotal)</td>
+            <td>
+              <span class="tag {{ 'tag-red' if flabel == 'Malicious' else 'tag-green' }}">
+                {{ flabel }}
+              </span>
+            </td>
+            <td class="mono">{{ '%.2f'|format(center_pct) }}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="result-actions">
+      <a href="/scan" class="btn-scan btn-inline"><span class="btn-scan-label">Scan Another URL</span></a>
+      <a href="/stats" class="btn-ghost">View Model Stats</a>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+{% set chart_label = final_label|default(label, true) %}
+<script>
+  window.URL_SHIELD_RESULT = {
+    malicious: {{ malicious_probability }},
+    benign: {{ benign_probability }},
+    confidence: {{ confidence }},
+    label: {{ chart_label|tojson }},
+    isMalicious: {{ 'true' if chart_label == 'Malicious' else 'false' }},
+    explanation: {{ explanation|tojson }}
+  };
+</script>
+{% endblock %}

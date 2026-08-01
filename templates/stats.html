@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Model Stats — CyberScan{% endblock %}
+
+{% block content %}
+{% set cm = confusion_matrix %}
+
+<main class="page-shell">
+  <div class="page-intro">
+    <h1 class="page-title">Model Performance</h1>
+    <p class="page-desc">Hybrid ensemble evaluation on the held-out test set.</p>
+  </div>
+
+  <div class="metrics-grid">
+    <article class="metric-card">
+      <div class="metric-label">Accuracy</div>
+      <div class="metric-value mono">{{ '%.2f'|format(accuracy) }}%</div>
+      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+    </article>
+    <article class="metric-card">
+      <div class="metric-label">Precision</div>
+      <div class="metric-value mono">{{ '%.2f'|format(precision) }}%</div>
+      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+    </article>
+    <article class="metric-card">
+      <div class="metric-label">Recall</div>
+      <div class="metric-value mono">{{ '%.2f'|format(recall) }}%</div>
+      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+    </article>
+    <article class="metric-card">
+      <div class="metric-label">F1-Score</div>
+      <div class="metric-value mono">{{ '%.2f'|format(f1) }}%</div>
+      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+    </article>
+  </div>
+
+  <section class="panel stats-chart-card">
+    <h2 class="panel-title">Metric Comparison</h2>
+    <p class="panel-desc">Glowing performance profile of the hybrid model.</p>
+    <div class="metric-bars">
+      <div class="metric-bar-row">
+        <span>Accuracy</span>
+        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ accuracy }}"></div></div>
+        <span class="mono">{{ '%.2f'|format(accuracy) }}%</span>
+      </div>
+      <div class="metric-bar-row">
+        <span>Precision</span>
+        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ precision }}"></div></div>
+        <span class="mono">{{ '%.2f'|format(precision) }}%</span>
+      </div>
+      <div class="metric-bar-row">
+        <span>Recall</span>
+        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ recall }}"></div></div>
+        <span class="mono">{{ '%.2f'|format(recall) }}%</span>
+      </div>
+      <div class="metric-bar-row">
+        <span>F1-Score</span>
+        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ f1 }}"></div></div>
+        <span class="mono">{{ '%.2f'|format(f1) }}%</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats-info-grid">
+    <section class="panel">
+      <h2 class="panel-title">Confusion Matrix</h2>
+      <div class="cm-grid">
+        <div class="cm-corner"></div>
+        <div class="cm-header">Pred. Benign</div>
+        <div class="cm-header">Pred. Malicious</div>
+        <div class="cm-row-label">Actual Benign</div>
+        <div class="cm-cell tn">
+          <span class="cm-num mono">{{ '{:,}'.format(cm[0][0]) }}</span>
+          <span class="cm-label">True Negative</span>
+        </div>
+        <div class="cm-cell fp">
+          <span class="cm-num mono">{{ '{:,}'.format(cm[0][1]) }}</span>
+          <span class="cm-label">False Positive</span>
+        </div>
+        <div class="cm-row-label">Actual Malicious</div>
+        <div class="cm-cell fn">
+          <span class="cm-num mono">{{ '{:,}'.format(cm[1][0]) }}</span>
+          <span class="cm-label">False Negative</span>
+        </div>
+        <div class="cm-cell tp">
+          <span class="cm-num mono">{{ '{:,}'.format(cm[1][1]) }}</span>
+          <span class="cm-label">True Positive</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Dataset &amp; Model Info</h2>
+      <div class="info-rows">
+        <div class="info-row"><span>Total URLs</span><span class="mono">{{ '{:,}'.format(total_urls) }}</span></div>
+        <div class="info-row"><span>Train / Test</span><span class="mono">{{ '{:,}'.format(train_samples) }} / {{ '{:,}'.format(test_samples) }}</span></div>
+        <div class="info-row"><span>Malicious / Benign</span><span class="mono">{{ '{:,}'.format(metrics.malicious_count) }} / {{ '{:,}'.format(metrics.benign_count) }}</span></div>
+        <div class="info-row"><span>Ensemble</span><span>{{ metrics.ensemble or 'Soft Voting (RF + SVM)' }}</span></div>
+        <div class="info-row"><span>Random Forest</span><span class="mono">100 trees · depth 15 · {{ metrics.rf_accuracy }}%</span></div>
+        <div class="info-row"><span>SVM (RBF, calibrated)</span><span class="mono">{{ metrics.svm_accuracy or metrics.lr_accuracy }}%</span></div>
+        <div class="info-row"><span>Features</span><span>{{ metrics.feature_count or 25 }} lexical features</span></div>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

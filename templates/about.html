@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}About — CyberScan{% endblock %}
+
+{% block content %}
+<main class="page-shell">
+  <div class="page-intro">
+    <h1 class="page-title">About CyberScan</h1>
+    <p class="page-desc">Detection of Malicious DNS Queries Using Machine Learning Techniques.</p>
+  </div>
+
+  <div class="about-grid">
+    <section class="panel">
+      <h2 class="panel-title">Project</h2>
+      <p class="about-text">
+        CyberScan classifies URLs as <strong>Malicious</strong> or <strong>Benign</strong>
+        using lexical + reputation features, a Soft Voting ensemble of Random Forest and calibrated SVM,
+        ML guards (allowlist / 95% threshold), and VirusTotal for final correction.
+      </p>
+      <div class="info-rows">
+        <div class="info-row"><span>Student</span><span>Zainab Ali Saleem Al-Hattali</span></div>
+        <div class="info-row"><span>University</span><span>Arab Open University, Muscat</span></div>
+        <div class="info-row"><span>Department</span><span>Computer Science</span></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">How it works</h2>
+      <ol class="about-steps">
+        <li>Extract lexical + brand/DNS/SSL/WHOIS reputation features</li>
+        <li>Classify with Random Forest + calibrated SVM; apply allowlist and 95% threshold</li>
+        <li>Combine probabilities via Soft Voting</li>
+        <li>Check reputation with VirusTotal</li>
+        <li>Correct ML false positives using engine consensus</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Lexical features</h2>
+      <p class="panel-desc">28 features used by the hybrid model (lexical + reputation).</p>
+      <div class="feature-tags">
+        <span class="feature-tag mono">url_length</span>
+        <span class="feature-tag mono">domain_length</span>
+        <span class="feature-tag mono">num_digits</span>
+        <span class="feature-tag mono">num_special_chars</span>
+        <span class="feature-tag mono">num_dots</span>
+        <span class="feature-tag mono">num_hyphens</span>
+        <span class="feature-tag mono">num_slashes</span>
+        <span class="feature-tag mono">subdomain_count</span>
+        <span class="feature-tag mono">has_ip_address</span>
+        <span class="feature-tag mono">has_at_symbol</span>
+        <span class="feature-tag mono">has_double_slash</span>
+        <span class="feature-tag mono">tld_suspicious</span>
+        <span class="feature-tag mono">entropy</span>
+        <span class="feature-tag mono">digit_ratio</span>
+        <span class="feature-tag mono">path_length</span>
+        <span class="feature-tag mono">query_length</span>
+        <span class="feature-tag mono">num_params</span>
+        <span class="feature-tag mono">is_shortened</span>
+        <span class="feature-tag mono">has_port</span>
+        <span class="feature-tag mono">has_known_tld</span>
+        <span class="feature-tag mono">consonant_ratio</span>
+        <span class="feature-tag mono">digit_in_domain</span>
+        <span class="feature-tag mono">repeated_chars</span>
+        <span class="feature-tag mono">domain_word_count</span>
+        <span class="feature-tag mono">is_known_brand</span>
+        <span class="feature-tag mono">domain_age_days</span>
+        <span class="feature-tag mono">dns_resolves</span>
+        <span class="feature-tag mono">ssl_valid</span>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

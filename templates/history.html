@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}History — CyberScan{% endblock %}
+
+{% block content %}
+<main class="page-shell">
+  <div class="history-toolbar">
+    <div class="page-intro" style="margin-bottom:0;">
+      <h1 class="page-title">History</h1>
+      <p class="page-desc">Saved URL scans and domain inspections from your account.</p>
+    </div>
+    <div class="search-wrap">
+      <input type="search" id="historySearch" class="search-input" placeholder="Search history..." autocomplete="off">
+    </div>
+  </div>
+
+  {% if history_requires_login %}
+  <section class="history-table-wrap">
+    <div class="empty-state">
+      <p>Please log in to view your saved scan history from the database.</p>
+      <a href="/login" class="btn-scan btn-inline"><span class="btn-scan-label">Login</span></a>
+    </div>
+  </section>
+  {% else %}
+
+  <div class="history-tabs" role="tablist">
+    <button type="button" class="history-tab active" data-history-tab="url" role="tab" aria-selected="true">
+      URL Scanner History
+    </button>
+    <button type="button" class="history-tab" data-history-tab="domain" role="tab" aria-selected="false">
+      Domain Inspector History
+    </button>
+  </div>
+
+  <section class="history-panel active" data-history-panel="url">
+    <div class="history-table-wrap">
+      {% if recent_scans %}
+      <table class="history-table" id="urlHistoryTable">
+        <thead>
+          <tr>
+            <th>URL</th>
+            <th>Result</th>
+            <th>Risk Level</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scan in recent_scans %}
+          <tr>
+            <td class="url-cell mono" title="{{ scan.url }}">{{ scan.url }}</td>
+            <td>
+              <span class="tag {{ 'tag-red' if scan.result == 'Malicious' else 'tag-green' }}">
+                {{ scan.result }}
+              </span>
+            </td>
+            <td>
+              <span class="risk-chip risk-{{ (scan.risk_level or 'Safe')|lower }}" style="margin:0;">
+                {{ scan.risk_level or 'Safe' }}
+              </span>
+            </td>
+            <td class="mono" style="color:var(--text-muted);">
+              {{ scan.scan_date.strftime('%Y-%m-%d %H:%M') if scan.scan_date else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <p>No URL scans saved yet. Analyze a URL while logged in to build this history.</p>
+        <a href="/scan" class="btn-scan btn-inline"><span class="btn-scan-label">Scan URL</span></a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="history-panel" data-history-panel="domain">
+    <div class="history-table-wrap">
+      {% if recent_domains %}
+      <table class="history-table" id="domainHistoryTable">
+        <thead>
+          <tr>
+            <th>Domain</th>
+            <th>IP</th>
+            <th>Country</th>
+            <th>SSL Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in recent_domains %}
+          <tr>
+            <td class="url-cell mono" title="{{ item.domain }}">{{ item.domain }}</td>
+            <td class="mono">{{ item.ip_address or '—' }}</td>
+            <td>{{ item.country or '—' }}</td>
+            <td>
+              {% if item.ssl_status == 'Valid' %}
+              <span class="tag tag-green">Valid ✅</span>
+              {% else %}
+              <span class="tag tag-yellow">Could not verify ⚠️</span>
+              {% endif %}
+            </td>
+            <td class="mono" style="color:var(--text-muted);">
+              {{ item.scan_date.strftime('%Y-%m-%d %H:%M') if item.scan_date else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <p>No domain inspections saved yet. Inspect a domain while logged in to build this history.</p>
+        <a href="/domain" class="btn-scan btn-inline"><span class="btn-scan-label">Inspect Domain</span></a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

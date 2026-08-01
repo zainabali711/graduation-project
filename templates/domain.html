@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Domain Inspector — CyberScan{% endblock %}
+
+{% block content %}
+<main class="page-shell landing">
+  <div class="landing-brand">
+    <svg class="landing-logo" viewBox="0 0 48 56" aria-hidden="true">
+      <path
+        fill="rgba(20, 184, 166, 0.08)"
+        stroke="#14B8A6"
+        stroke-width="2.2"
+        stroke-linejoin="round"
+        d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
+      />
+    </svg>
+    <h1 class="landing-brand-name">Domain Inspector<em>WHOIS + Network</em></h1>
+  </div>
+
+  <div class="landing-title-block">
+    <h2 class="landing-headline">Inspect Any Domain</h2>
+    <div class="title-scan-rail" aria-hidden="true">
+      <div class="scanning-line"></div>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form id="domainForm" action="/domain" method="POST" class="scan-pill">
+    <input
+      type="text"
+      id="domainInput"
+      name="domain"
+      class="scan-input"
+      placeholder="Enter domain (e.g. example.com)"
+      value="{{ domain_query or '' }}"
+      autocomplete="off"
+      required
+      onkeypress="if(event.key==='Enter'){event.preventDefault();this.form.requestSubmit();}"
+    >
+    <button type="submit" id="domainSubmitBtn" class="btn-scan">
+      <span class="btn-scan-label">Inspect</span>
+      <span class="btn-scan-spinner" aria-hidden="true"></span>
+    </button>
+  </form>
+
+  {% if info_note %}
+  <p class="landing-sub" style="margin-top:8px;">{{ info_note }}</p>
+  {% endif %}
+
+  {% if result %}
+  <section class="domain-results">
+    <div class="domain-results-header">
+      <h3 class="panel-title">Results for <span class="mono">{{ result.domain }}</span></h3>
+    </div>
+    <div class="domain-grid">
+      <article class="panel domain-info-card">
+        <div class="metric-label">IP Address</div>
+        <div class="domain-value mono">{{ result.ip_address or '—' }}</div>
+      </article>
+      <article class="panel domain-info-card">
+        <div class="metric-label">Country</div>
+        <div class="domain-value">{{ result.country or '—' }}</div>
+      </article>
+      <article class="panel domain-info-card">
+        <div class="metric-label">Organization</div>
+        <div class="domain-value">{{ result.organization or '—' }}</div>
+      </article>
+      <article class="panel domain-info-card">
+        <div class="metric-label">Domain Registration Date</div>
+        <div class="domain-value mono">{{ result.created_date or '—' }}</div>
+      </article>
+      <article class="panel domain-info-card">
+        <div class="metric-label">Domain Expiry Date</div>
+        <div class="domain-value mono">{{ result.expires_date or '—' }}</div>
+      </article>
+      <article class="panel domain-info-card">
+        <div class="metric-label">SSL Certificate Status</div>
+        <div class="domain-value">
+          {% if result.ssl_status == 'Valid' %}
+          <span class="tag tag-green">Valid ✅</span>
+          {% else %}
+          <span class="tag tag-yellow">Could not verify ⚠️</span>
+          {% endif %}
+        </div>
+      </article>
+      <article class="panel domain-info-card domain-whois">
+        <div class="metric-label">Additional WHOIS Info</div>
+        <div class="info-rows">
+          <div class="info-row"><span>Domain Age</span><span class="mono">{{ result.domain_age or '—' }}</span></div>
+          <div class="info-row"><span>Registrar</span><span>{{ result.registrar or '—' }}</span></div>
+          <div class="info-row"><span>Updated</span><span class="mono">{{ result.updated_date or '—' }}</span></div>
+          <div class="info-row"><span>Name Servers</span><span class="mono">{{ result.name_servers or '—' }}</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}
