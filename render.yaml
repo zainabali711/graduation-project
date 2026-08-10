@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: cyberscan
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: VIRUSTOTAL_SSL_VERIFY
+        value: "true"
+      - key: SECRET_KEY
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        sync: false
+      - key: VIRUSTOTAL_API_KEY
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
