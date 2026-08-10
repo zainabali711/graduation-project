@@ -17,11 +17,17 @@
     {% if success %}
     <div class="alert-success" role="alert">{{ success }}</div>
     {% endif %}
+    {% if verify_url %}
+    <div class="auth-verify-box" role="status">
+      <p>Verify on this computer (Flask must be running):</p>
+      <a class="btn-teal auth-verify-link" href="{{ verify_url }}">Verify email in this browser</a>
+    </div>
+    {% endif %}
 
     <form id="loginForm" class="auth-form {% if mode != 'register' %}active{% endif %}" action="/login" method="POST" data-auth-form="login" {% if mode == 'register' %}hidden{% endif %}>
       <div class="form-field">
         <label for="loginUser">Username</label>
-        <input id="loginUser" name="username" type="text" placeholder="Enter username" autocomplete="username" required>
+        <input id="loginUser" name="username" type="text" placeholder="Enter username" autocomplete="username" value="{{ form_username|default('', true) }}" required>
       </div>
       <div class="form-field">
         <label for="loginPass">Password</label>
@@ -36,6 +42,13 @@
         </div>
       </div>
       <button type="submit" class="btn-teal">Login</button>
+      <button
+        type="submit"
+        class="btn-ghost auth-resend-btn{% if show_resend %} auth-resend-btn--urgent{% endif %}"
+        formaction="/resend-verification"
+        formmethod="POST"
+      >Resend verification email</button>
+      <p class="auth-resend-hint">Didn’t get the email? Enter your password above, then click Resend. Check spam too.</p>
     </form>
 
     <form id="registerForm" class="auth-form {% if mode == 'register' %}active{% endif %}" action="/register" method="POST" data-auth-form="register" {% if mode != 'register' %}hidden{% endif %}>

@@ -3,17 +3,24 @@
 import base64
 import os
 import time
+import warnings
 from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
 from requests.adapters import HTTPAdapter
+from urllib3.exceptions import InsecureRequestWarning
 
 try:
     from urllib3.util.retry import Retry
 except ImportError:  # pragma: no cover
     from requests.packages.urllib3.util.retry import Retry  # type: ignore
+
+try:
+    import certifi
+except ImportError:  # pragma: no cover
+    certifi = None
 
 # Always load project .env (works even if cwd is wrong)
 _BASE = Path(__file__).resolve().parent.parent
@@ -38,16 +45,29 @@ def _vt_headers() -> dict:
     }
 
 
+def _ssl_verify_setting():
+    """
+    Prefer system/certifi CAs. Some Windows antivirus products intercept HTTPS
+    and break verification — callers may fall back to verify=False.
+    """
+    env = (os.environ.get("VIRUSTOTAL_SSL_VERIFY") or "").strip().lower()
+    if env in {"0", "false", "no", "off"}:
+        return False
+    if certifi is not None:
+        return certifi.where()
+    return True
+
+
 def _make_session() -> requests.Session:
     """Session with retries; ignore broken system proxies."""
     session = requests.Session()
     session.trust_env = False  # avoid Windows proxy env causing Permission denied
     session.headers.update(_vt_headers())
     retry = Retry(
-        total=3,
-        connect=3,
-        read=3,
-        backoff_factor=0.6,
+        total=2,
+        connect=2,
+        read=2,
+        backoff_factor=0.5,
         status_forcelist=(429, 500, 502, 503, 504),
         allowed_methods=frozenset(["GET", "POST"]),
         raise_on_status=False,
@@ -73,12 +93,22 @@ def _url_id(url: str) -> str:
     return base64.urlsafe_b64encode(url.encode("utf-8")).decode("ascii").strip("=")
 
 
+def _request(session: requests.Session, method: str, url: str, **kwargs):
+    """Try secure SSL first; on CERTIFICATE_VERIFY_FAILED retry without verify."""
+    verify = kwargs.pop("verify", _ssl_verify_setting())
+    try:
+        return session.request(method, url, verify=verify, timeout=20, **kwargs)
+    except requests.exceptions.SSLError:
+        # Common on Windows when antivirus does HTTPS scanning.
+        warnings.simplefilter("ignore", InsecureRequestWarning)
+        return session.request(method, url, verify=False, timeout=20, **kwargs)
+
+
 def check_url(url: str) -> dict:
     """
-    Check a URL with VirusTotal.
+    Check a URL with VirusTotal (free API — no paid plan required).
 
-    Returns a dict with engine counts when available, or a clean unavailable
-    message for the UI (technical detail kept in error_detail only).
+    Returns engine counts when available, or a clean unavailable message for the UI.
     """
     if not _api_key():
         return _error_result("VIRUSTOTAL_API_KEY is not set in .env")
@@ -91,10 +121,11 @@ def check_url(url: str) -> dict:
     for attempt in range(3):
         try:
             with _make_session() as session:
-                report = session.get(
+                report = _request(
+                    session,
+                    "GET",
                     f"{VT_URL_ENDPOINT}/{url_id}",
                     headers=headers,
-                    timeout=20,
                 )
 
                 if report.status_code == 401:
@@ -106,11 +137,12 @@ def check_url(url: str) -> dict:
                     return _error_result("VirusTotal rate limit reached (free: 4 requests/min)")
 
                 if report.status_code == 404:
-                    submit = session.post(
+                    submit = _request(
+                        session,
+                        "POST",
                         VT_URL_ENDPOINT,
                         headers=headers,
                         data={"url": url},
-                        timeout=20,
                     )
                     if submit.status_code == 429:
                         if attempt < 2:
@@ -123,10 +155,11 @@ def check_url(url: str) -> dict:
                         return _error_result(f"VirusTotal submit failed ({submit.status_code})")
 
                     analysis_id = submit.json()["data"]["id"]
-                    analysis = session.get(
+                    analysis = _request(
+                        session,
+                        "GET",
                         f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
                         headers=headers,
-                        timeout=20,
                     )
                     if analysis.status_code >= 400:
                         return _error_result("VirusTotal has no report for this URL yet")

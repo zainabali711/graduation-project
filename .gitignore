@@ -1,3 +1,4 @@
+# Secrets — never push to GitHub / Render from git
 .env
 __pycache__/
 *.pyc

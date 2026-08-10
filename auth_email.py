@@ -23,10 +23,28 @@ def confirm_verification_token(token: str, max_age_seconds: int = 60 * 60 * 24) 
         return None
 
 
-def send_verification_email(mail, user) -> None:
-    """Send a verification email with a signed token link."""
+def build_verification_url(user) -> str:
+    """
+    Build an absolute verify URL.
+
+    Prefer APP_BASE_URL from config/.env so links work when opened from email
+    (phones cannot open http://127.0.0.1 — that points at the phone itself).
+    """
     token = generate_verification_token(user.email)
-    verify_url = url_for("verify_email", token=token, _external=True)
+    path = url_for("verify_email", token=token)
+    base = (
+        current_app.config.get("APP_BASE_URL")
+        or os.environ.get("APP_BASE_URL")
+        or ""
+    ).strip().rstrip("/")
+    if base:
+        return f"{base}{path}"
+    return url_for("verify_email", token=token, _external=True)
+
+
+def send_verification_email(mail, user) -> str:
+    """Send a verification email with a signed token link. Returns the verify URL."""
+    verify_url = build_verification_url(user)
     sender = current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get(
         "MAIL_USERNAME"
     )
@@ -38,7 +56,8 @@ def send_verification_email(mail, user) -> None:
         body=(
             f"Hello {user.username},\n\n"
             "Thank you for registering with CyberScan.\n"
-            "Please verify your email by opening this link:\n\n"
+            "Please verify your email by opening this link on the same computer "
+            "where CyberScan is running (or use the Verify button on the login page):\n\n"
             f"{verify_url}\n\n"
             "This link expires in 24 hours.\n\n"
             "If you did not create this account, you can ignore this email.\n"
@@ -50,6 +69,7 @@ def send_verification_email(mail, user) -> None:
         ),
     )
     mail.send(msg)
+    return verify_url
 
 
 def mail_configured() -> bool:

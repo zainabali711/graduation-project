@@ -16,7 +16,12 @@ from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_mail import Mail
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from auth_email import confirm_verification_token, mail_configured, send_verification_email
+from auth_email import (
+    build_verification_url,
+    confirm_verification_token,
+    mail_configured,
+    send_verification_email,
+)
 from model.domain_lookup import inspect_domain
 from model.predict import predict_url
 from models import DomainScan, UrlScan, User, db
@@ -37,6 +42,29 @@ app.config["MAIL_USE_TLS"] = True
 app.config["MAIL_USERNAME"] = _mail_username
 app.config["MAIL_PASSWORD"] = _mail_password
 app.config["MAIL_DEFAULT_SENDER"] = _mail_sender or "noreply@cyberscan.local"
+def _detect_lan_ip() -> str:
+    """Best-effort local Wi‑Fi/LAN IPv4 for phone/tablet testing."""
+    import socket
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(("8.8.8.8", 80))
+        ip = sock.getsockname()[0]
+        sock.close()
+        if ip and not ip.startswith("127."):
+            return ip
+    except OSError:
+        pass
+    return "127.0.0.1"
+
+
+# Base URL for verification emails.
+# On Render set APP_BASE_URL=https://your-service.onrender.com
+# Locally, if unset, fall back to this PC's LAN IP for device testing.
+_app_base = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
+if not _app_base:
+    _app_base = f"http://{_detect_lan_ip()}:5000"
+app.config["APP_BASE_URL"] = _app_base
 
 db.init_app(app)
 mail = Mail(app)
@@ -312,10 +340,14 @@ def login():
 
     error = None
     success = request.args.get("success")
+    verify_url = request.args.get("verify_url")
+    show_resend = False
+    form_username = ""
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+        form_username = username
 
         user = User.query.filter_by(username=username).first()
         if user is None or not check_password_hash(user.password, password):
@@ -323,8 +355,11 @@ def login():
         elif not user.is_verified:
             error = (
                 "Please verify your email before logging in. "
-                "Check your inbox for the verification link."
+                "Use Resend below, then click Verify in this browser "
+                "(opening the email link on your phone will not work with localhost)."
             )
+            show_resend = True
+            verify_url = build_verification_url(user)
         else:
             login_user(user)
             return redirect(url_for("index"))
@@ -336,6 +371,83 @@ def login():
         error=error,
         success=success,
         auth_mode="login",
+        show_resend=show_resend,
+        form_username=form_username,
+        verify_url=verify_url,
+    )
+
+
+@app.route("/resend-verification", methods=["POST"])
+def resend_verification():
+    """Resend the email verification link for an unverified account."""
+    metrics = _load_metrics()
+
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+
+    user = User.query.filter_by(username=username).first()
+    if user is None or not check_password_hash(user.password, password):
+        return render_template(
+            "login.html",
+            accuracy=metrics.get("accuracy", 0),
+            active_page="login",
+            error="Invalid username or password.",
+            success=None,
+            auth_mode="login",
+            show_resend=False,
+            form_username=username,
+        )
+
+    if user.is_verified:
+        return redirect(
+            url_for(
+                "login",
+                success="This account is already verified. You can log in.",
+            )
+        )
+
+    if not mail_configured():
+        return render_template(
+            "login.html",
+            accuracy=metrics.get("accuracy", 0),
+            active_page="login",
+            error="Email is not configured. Check MAIL settings in .env.",
+            success=None,
+            auth_mode="login",
+            show_resend=True,
+            form_username=username,
+        )
+
+    try:
+        verify_url = send_verification_email(mail, user)
+    except Exception:
+        return render_template(
+            "login.html",
+            accuracy=metrics.get("accuracy", 0),
+            active_page="login",
+            error=(
+                "Could not send the verification email. "
+                "Check your Gmail App Password and spam folder settings."
+            ),
+            success=None,
+            auth_mode="login",
+            show_resend=True,
+            form_username=username,
+            verify_url=None,
+        )
+
+    return redirect(
+        url_for(
+            "login",
+            success=(
+                f"Verification email sent to {user.email}. "
+                "Prefer the Verify button below (same computer as the app)."
+            ),
+            verify_url=verify_url,
+        )
     )
 
 
@@ -377,7 +489,7 @@ def register():
                 db.session.add(user)
                 db.session.commit()
                 try:
-                    send_verification_email(mail, user)
+                    verify_url = send_verification_email(mail, user)
                 except Exception:
                     db.session.delete(user)
                     db.session.commit()
@@ -390,9 +502,10 @@ def register():
                         url_for(
                             "login",
                             success=(
-                                "Please check your email to verify your account "
-                                "before logging in."
+                                "Account created. Click Verify in this browser below "
+                                "(phone email links to localhost will not work)."
                             ),
+                            verify_url=verify_url,
                         )
                     )
 
@@ -449,5 +562,28 @@ def logout():
     return redirect(url_for("index"))
 
 
+@app.route("/ping")
+def ping():
+    """Simple reachability check for phone/tablet LAN testing."""
+    return jsonify(
+        {
+            "ok": True,
+            "app_base_url": app.config.get("APP_BASE_URL"),
+            "message": "CyberScan is reachable from this device.",
+        }
+    )
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Local/dev only. Production (Render) uses: gunicorn app:app
+    port = int(os.environ.get("PORT", 5000))
+    lan_url = app.config.get("APP_BASE_URL", f"http://127.0.0.1:{port}")
+    print("\n=== CyberScan ===")
+    print(f"Local:   http://127.0.0.1:{port}")
+    print(f"LAN/App: {lan_url}")
+    print("=================\n")
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=os.environ.get("FLASK_DEBUG", "1") == "1",
+    )
