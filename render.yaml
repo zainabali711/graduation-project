@@ -24,3 +24,5 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false
+      - key: ADMIN_SETUP_SECRET
+        sync: false

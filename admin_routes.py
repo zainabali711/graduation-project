@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import secrets
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
-from werkzeug.security import check_password_hash
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from admin_auth import admin_required, current_admin, login_admin, logout_admin
 from models import Admin, DomainScan, UrlScan, User, db
@@ -18,6 +20,71 @@ PER_PAGE = 20
 def _paginate(query, page: int, per_page: int = PER_PAGE):
     page = max(page or 1, 1)
     return query.paginate(page=page, per_page=per_page, error_out=False)
+
+
+def _setup_secret() -> str:
+    return (os.environ.get("ADMIN_SETUP_SECRET") or "").strip()
+
+
+def _secret_matches(provided: str, expected: str) -> bool:
+    if not expected or len(provided) != len(expected):
+        return False
+    return secrets.compare_digest(provided, expected)
+
+
+@admin_bp.route("/setup", methods=["GET", "POST"])
+def setup():
+    """
+    Temporary first-admin bootstrap for Render.
+
+    Enabled only when:
+      - ADMIN_SETUP_SECRET is set in the environment, and
+      - the admins table has zero rows.
+
+    After creating an admin, delete ADMIN_SETUP_SECRET from Render.
+    """
+    if not _setup_secret():
+        abort(404)
+    if Admin.query.count() > 0:
+        abort(404)
+
+    error = None
+    success = None
+
+    if request.method == "POST":
+        provided = (request.form.get("setup_secret") or "").strip()
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        confirm = request.form.get("password_confirm") or ""
+
+        if not _secret_matches(provided, _setup_secret()):
+            error = "Invalid setup secret."
+        elif not username:
+            error = "Username is required."
+        elif len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        elif Admin.query.filter_by(username=username).first():
+            error = "That admin username already exists."
+        else:
+            admin = Admin(
+                username=username,
+                password_hash=generate_password_hash(password, method="scrypt"),
+            )
+            db.session.add(admin)
+            db.session.commit()
+            success = (
+                f"Admin '{username}' created. "
+                "Delete ADMIN_SETUP_SECRET from Render Environment now, "
+                "then sign in at /admin/login."
+            )
+
+    return render_template(
+        "admin/setup.html",
+        error=error,
+        success=success,
+    )
 
 
 @admin_bp.route("/login", methods=["GET", "POST"])

@@ -1,14 +1,16 @@
 """One-time script: create admins table and insert the first admin account.
 
-Usage (from project root, with venv active if you use one):
+Interactive (local):
     python create_admin.py
 
-Prompts securely for username and password — nothing is hardcoded.
+Non-interactive (Render Shell):
+    ADMIN_USERNAME=myadmin ADMIN_PASSWORD='strong-pass' python create_admin.py
 """
 
 from __future__ import annotations
 
 import getpass
+import os
 import sys
 from pathlib import Path
 
@@ -17,7 +19,6 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env", override=True)
 
-# Ensure project root is importable
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -29,20 +30,26 @@ from models import Admin, db
 
 def main() -> int:
     print("=== CyberScan — Create Admin Account ===")
-    print("This creates the `admins` table (if needed) and inserts one admin.\n")
+    print("Creates the `admins` table (if needed) and inserts one admin.\n")
 
-    username = input("Admin username: ").strip()
-    if not username:
-        print("Username cannot be empty.")
-        return 1
+    username = (os.environ.get("ADMIN_USERNAME") or "").strip()
+    password = os.environ.get("ADMIN_PASSWORD") or ""
 
-    password = getpass.getpass("Admin password: ")
-    confirm = getpass.getpass("Confirm password: ")
+    if username and password:
+        print(f"Using ADMIN_USERNAME / ADMIN_PASSWORD from environment ({username}).")
+    else:
+        username = input("Admin username: ").strip()
+        if not username:
+            print("Username cannot be empty.")
+            return 1
+        password = getpass.getpass("Admin password: ")
+        confirm = getpass.getpass("Confirm password: ")
+        if password != confirm:
+            print("Passwords do not match.")
+            return 1
+
     if not password:
         print("Password cannot be empty.")
-        return 1
-    if password != confirm:
-        print("Passwords do not match.")
         return 1
     if len(password) < 6:
         print("Password must be at least 6 characters.")

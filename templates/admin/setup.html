@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One-time Admin Setup — CyberScan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body">
+  <main class="admin-login-wrap">
+    <section class="admin-login-card">
+      <p class="admin-kicker">CyberScan</p>
+      <h1>One-time admin setup</h1>
+      <p class="admin-sub">
+        Creates the first admin on this server. After success, delete
+        <span class="mono">ADMIN_SETUP_SECRET</span> from Render Environment.
+      </p>
+
+      {% if error %}
+      <div class="alert-error" role="alert">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+      <div class="alert-success" role="status">{{ success }}</div>
+      <p class="admin-back"><a href="{{ url_for('admin.login') }}">Go to admin login →</a></p>
+      {% else %}
+      <form method="POST" action="{{ url_for('admin.setup') }}" class="admin-form" autocomplete="off">
+        <div class="form-field">
+          <label for="setupSecret">Setup secret</label>
+          <input id="setupSecret" name="setup_secret" type="password" required>
+        </div>
+        <div class="form-field">
+          <label for="adminUser">Admin username</label>
+          <input id="adminUser" name="username" type="text" required>
+        </div>
+        <div class="form-field">
+          <label for="adminPass">Admin password</label>
+          <input id="adminPass" name="password" type="password" minlength="6" required>
+        </div>
+        <div class="form-field">
+          <label for="adminPass2">Confirm password</label>
+          <input id="adminPass2" name="password_confirm" type="password" minlength="6" required>
+        </div>
+        <button type="submit" class="btn-teal admin-btn">Create admin</button>
+      </form>
+      {% endif %}
+      <p class="admin-back"><a href="/">← Back to site</a></p>
+    </section>
+  </main>
+</body>
+</html>
