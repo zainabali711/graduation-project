@@ -1,0 +1,50 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Domain Scan Logs — Admin — CyberScan{% endblock %}
+{% block page_heading %}Domain Scan Logs{% endblock %}
+
+{% block content %}
+<section class="admin-section" id="domain-scans">
+  <h2 class="admin-section-title">Domain scan logs</h2>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Domain</th>
+          <th>IP</th>
+          <th>Country</th>
+          <th>SSL status</th>
+          <th>Scan date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for scan in domains_pagination.items %}
+        <tr>
+          <td class="mono">{{ scan.user.username if scan.user else 'Guest' }}</td>
+          <td class="mono">{{ scan.domain }}</td>
+          <td class="mono">{{ scan.ip_address or '—' }}</td>
+          <td>{{ scan.country or '—' }}</td>
+          <td>{{ scan.ssl_status or '—' }}</td>
+          <td class="mono">{{ scan.scan_date.strftime('%Y-%m-%d %H:%M') if scan.scan_date else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="admin-empty">No domain scans yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if domains_pagination.pages > 1 %}
+  <nav class="admin-pager" aria-label="Domain scans pagination">
+    {% if domains_pagination.has_prev %}
+    <a href="{{ url_for('admin.domain_scans', page=domains_pagination.prev_num) }}">← Previous</a>
+    {% endif %}
+    <span class="mono">Page {{ domains_pagination.page }} / {{ domains_pagination.pages }}</span>
+    {% if domains_pagination.has_next %}
+    <a href="{{ url_for('admin.domain_scans', page=domains_pagination.next_num) }}">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

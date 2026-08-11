@@ -1,0 +1,43 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dashboard — Admin — CyberScan{% endblock %}
+{% block page_heading %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="admin-section" id="stats">
+  <h2 class="admin-section-title">Stats overview</h2>
+  <div class="admin-stat-grid">
+    <article class="admin-stat-card">
+      <span class="admin-stat-label">Registered users</span>
+      <strong class="admin-stat-value mono">{{ total_users }}</strong>
+    </article>
+    <article class="admin-stat-card">
+      <span class="admin-stat-label">URL scans (all-time)</span>
+      <strong class="admin-stat-value mono">{{ total_url_scans }}</strong>
+    </article>
+    <article class="admin-stat-card">
+      <span class="admin-stat-label">Domain scans (all-time)</span>
+      <strong class="admin-stat-value mono">{{ total_domain_scans }}</strong>
+    </article>
+    <article class="admin-stat-card">
+      <span class="admin-stat-label">Scans today</span>
+      <strong class="admin-stat-value mono">{{ scans_today }}</strong>
+    </article>
+  </div>
+
+  <div class="admin-ratio-card">
+    <div class="admin-ratio-head">
+      <h3>Malicious vs Safe (URL scans)</h3>
+      <p class="mono">{{ malicious_count }} malicious · {{ safe_count }} safe</p>
+    </div>
+    <div class="admin-ratio-bar" role="img" aria-label="Malicious {{ malicious_pct }} percent, Safe {{ safe_pct }} percent">
+      <span class="admin-ratio-malicious" style="width: {{ malicious_pct }}%"></span>
+      <span class="admin-ratio-safe" style="width: {{ safe_pct }}%"></span>
+    </div>
+    <div class="admin-ratio-legend">
+      <span><i class="dot dot-red"></i> Malicious {{ malicious_pct }}%</span>
+      <span><i class="dot dot-green"></i> Safe {{ safe_pct }}%</span>
+    </div>
+  </div>
+</section>
+{% endblock %}

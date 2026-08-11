@@ -1,0 +1,59 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Users — Admin — CyberScan{% endblock %}
+{% block page_heading %}Users{% endblock %}
+
+{% block content %}
+<section class="admin-section" id="users">
+  <h2 class="admin-section-title">User management</h2>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Registration date</th>
+          <th>Verified</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users_pagination.items %}
+        <tr>
+          <td class="mono">{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td class="mono">{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '—' }}</td>
+          <td>
+            {% if user.is_verified %}
+            <span class="admin-badge admin-badge-yes">Yes</span>
+            {% else %}
+            <span class="admin-badge admin-badge-no">No</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id, page=users_pagination.page) }}" class="admin-inline-form"
+                  onsubmit="return confirm('Permanently delete user \'{{ user.username }}\' and all their scans?');">
+              <button type="submit" class="admin-danger-btn">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="admin-empty">No users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if users_pagination.pages > 1 %}
+  <nav class="admin-pager" aria-label="Users pagination">
+    {% if users_pagination.has_prev %}
+    <a href="{{ url_for('admin.users', page=users_pagination.prev_num) }}">← Previous</a>
+    {% endif %}
+    <span class="mono">Page {{ users_pagination.page }} / {{ users_pagination.pages }}</span>
+    {% if users_pagination.has_next %}
+    <a href="{{ url_for('admin.users', page=users_pagination.next_num) }}">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

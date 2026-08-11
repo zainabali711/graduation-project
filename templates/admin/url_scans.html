@@ -1,0 +1,56 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}URL Scan Logs — Admin — CyberScan{% endblock %}
+{% block page_heading %}URL Scan Logs{% endblock %}
+
+{% block content %}
+<section class="admin-section" id="url-scans">
+  <h2 class="admin-section-title">URL scan logs</h2>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>URL</th>
+          <th>Result</th>
+          <th>Risk</th>
+          <th>Confidence</th>
+          <th>Scan date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for scan in urls_pagination.items %}
+        <tr>
+          <td class="mono">{{ scan.user.username if scan.user else 'Guest' }}</td>
+          <td class="admin-url mono" title="{{ scan.url }}">{{ scan.url }}</td>
+          <td>
+            {% if scan.result == 'Malicious' %}
+            <span class="admin-badge admin-badge-no">Malicious</span>
+            {% else %}
+            <span class="admin-badge admin-badge-yes">Safe</span>
+            {% endif %}
+          </td>
+          <td>{{ scan.risk_level }}</td>
+          <td class="mono">{{ '%.1f'|format(scan.confidence * 100 if scan.confidence <= 1 else scan.confidence) }}%</td>
+          <td class="mono">{{ scan.scan_date.strftime('%Y-%m-%d %H:%M') if scan.scan_date else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="admin-empty">No URL scans yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if urls_pagination.pages > 1 %}
+  <nav class="admin-pager" aria-label="URL scans pagination">
+    {% if urls_pagination.has_prev %}
+    <a href="{{ url_for('admin.url_scans', page=urls_pagination.prev_num) }}">← Previous</a>
+    {% endif %}
+    <span class="mono">Page {{ urls_pagination.page }} / {{ urls_pagination.pages }}</span>
+    {% if urls_pagination.has_next %}
+    <a href="{{ url_for('admin.url_scans', page=urls_pagination.next_num) }}">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

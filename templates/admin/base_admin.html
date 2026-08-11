@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin — CyberScan{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body admin-shell">
+  <button
+    type="button"
+    id="adminNavToggle"
+    class="nav-toggle admin-nav-toggle"
+    aria-label="Open menu"
+    aria-expanded="false"
+    aria-controls="adminSidebar"
+  >
+    <span class="nav-toggle-bars" aria-hidden="true"></span>
+  </button>
+  <div id="adminNavOverlay" class="nav-overlay admin-nav-overlay" hidden></div>
+
+  <aside id="adminSidebar" class="admin-sidebar" aria-hidden="false">
+    <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar-brand">
+      <strong>CyberScan</strong>
+      <span>Admin</span>
+    </a>
+
+    <nav class="admin-sidebar-nav" aria-label="Admin">
+      <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-item {% if active_section == 'dashboard' %}active{% endif %}">
+        Dashboard
+      </a>
+      <a href="{{ url_for('admin.users') }}" class="admin-nav-item {% if active_section == 'users' %}active{% endif %}">
+        Users
+      </a>
+      <a href="{{ url_for('admin.url_scans') }}" class="admin-nav-item {% if active_section == 'url_scans' %}active{% endif %}">
+        URL Scan Logs
+      </a>
+      <a href="{{ url_for('admin.domain_scans') }}" class="admin-nav-item {% if active_section == 'domain_scans' %}active{% endif %}">
+        Domain Scan Logs
+      </a>
+      <a href="{{ url_for('admin.logout') }}" class="admin-nav-item admin-nav-logout">
+        Logout
+      </a>
+    </nav>
+
+    <div class="admin-sidebar-foot">
+      <span class="mono">{{ admin.username if admin else 'admin' }}</span>
+      <a href="/">View site →</a>
+    </div>
+  </aside>
+
+  <div class="admin-content">
+    <header class="admin-page-head">
+      <p class="admin-kicker">CyberScan Admin</p>
+      <h1>{% block page_heading %}Dashboard{% endblock %}</h1>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="{% if category == 'error' %}alert-error{% else %}alert-success{% endif %}" role="status">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <main class="admin-main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — CyberScan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body">
+  <main class="admin-login-wrap">
+    <section class="admin-login-card">
+      <p class="admin-kicker">CyberScan</p>
+      <h1>Admin Login</h1>
+      <p class="admin-sub">Separate from user accounts. Admins only.</p>
+
+      {% if error %}
+      <div class="alert-error" role="alert">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('admin.login') }}" class="admin-form">
+        <div class="form-field">
+          <label for="adminUser">Username</label>
+          <input id="adminUser" name="username" type="text" autocomplete="username" required>
+        </div>
+        <div class="form-field">
+          <label for="adminPass">Password</label>
+          <input id="adminPass" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn-teal admin-btn">Sign in</button>
+      </form>
+      <p class="admin-back"><a href="/">← Back to site</a></p>
+    </section>
+  </main>
+</body>
+</html>
