@@ -86,9 +86,15 @@
         {% endif %}
         {% else %}
         <div class="vt-unavailable-card" role="status">
-          <div class="vt-unavailable-banner">VirusTotal Unavailable</div>
+          <div class="vt-unavailable-banner">
+            {% if 'busy' in (vt.get('error') or '')|lower or 'rate' in (vt.get('error_detail') or '')|lower %}
+            VirusTotal Busy
+            {% else %}
+            VirusTotal Unavailable
+            {% endif %}
+          </div>
           <p class="vt-unavailable-text">
-            VirusTotal check unavailable — using ML result only
+            {{ vt.get('error') or 'VirusTotal check unavailable — using ML result only' }}
           </p>
         </div>
         {% endif %}
