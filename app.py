@@ -24,7 +24,8 @@ from auth_email import (
 )
 from model.domain_lookup import inspect_domain
 from model.predict import predict_url
-from models import DomainScan, UrlScan, User, db
+from models import Admin, DomainScan, UrlScan, User, db
+from admin_routes import admin_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "url-shield-dev-secret-key")
@@ -68,6 +69,7 @@ app.config["APP_BASE_URL"] = _app_base
 
 db.init_app(app)
 mail = Mail(app)
+app.register_blueprint(admin_bp)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -230,6 +232,8 @@ def predict():
 
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+
+    print(f"VT_DIAG predict_route ENTER url_len={len(url)}", flush=True)
 
     try:
         result = predict_url(url)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import sys
 import threading
 import time
 import warnings
@@ -29,11 +30,19 @@ except ImportError:  # pragma: no cover
 
 logger = logging.getLogger("cyberscan.virustotal")
 if not logger.handlers:
-    _handler = logging.StreamHandler()
+    _handler = logging.StreamHandler(sys.stderr)
     _handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)
-    logger.propagate = False
+    logger.propagate = True
+
+
+def _diag(msg: str) -> None:
+    """Force a line into Render runtime logs (stdout + stderr, unbuffered)."""
+    line = f"VT_DIAG {msg}"
+    print(line, flush=True)
+    print(line, file=sys.stderr, flush=True)
+    logger.info(line)
 
 # Local .env for development only. Never override Render/process env vars.
 _BASE = Path(__file__).resolve().parent.parent
@@ -195,12 +204,7 @@ def _request(session: requests.Session, method: str, url: str, **kwargs):
     try:
         resp = session.request(method, url, verify=verify, timeout=25, **kwargs)
     except requests.exceptions.SSLError as ssl_exc:
-        logger.warning(
-            "[VirusTotal][DIAG] SSLError on %s %s — retry verify=False | %s",
-            method,
-            url.split("?")[0],
-            ssl_exc,
-        )
+        _diag(f"SSLError on {method} — retry verify=False | {ssl_exc}")
         warnings.simplefilter("ignore", InsecureRequestWarning)
         resp = session.request(method, url, verify=False, timeout=25, **kwargs)
 
@@ -209,16 +213,9 @@ def _request(session: requests.Session, method: str, url: str, **kwargs):
         body_snip = (resp.text or "")[:180].replace("\n", " ")
     except Exception:
         body_snip = "<unreadable>"
-    logger.info(
-        "[VirusTotal][DIAG] HTTP %s %s -> status_code=%s body_snip=%r",
-        method,
-        url.split("/api/v3/")[-1][:80],
-        resp.status_code,
-        body_snip,
-    )
-    print(
-        f"[VirusTotal][DIAG] HTTP {method} status_code={resp.status_code}",
-        flush=True,
+    _diag(
+        f"HTTP {method} status_code={resp.status_code} "
+        f"path={url.split('/api/v3/')[-1][:80]} body_snip={body_snip!r}"
     )
     return resp
 
@@ -237,19 +234,12 @@ def check_url(url: str) -> dict:
     """
     Check a URL with VirusTotal (free API — one key shared by all app users).
     """
-    print("[VirusTotal][DIAG] check_url ENTER", flush=True)
+    _diag("check_url ENTER")
     key = _log_key_debug("before API call")
     ssl_verify = _ssl_verify_setting()
-    logger.info(
-        "[VirusTotal][DIAG] ssl_verify=%s | endpoint=%s | key_present=%s | key_length=%s",
-        ssl_verify if isinstance(ssl_verify, bool) else "certifi_bundle",
-        VT_URL_ENDPOINT,
-        bool(key),
-        len(key),
-    )
-    print(
-        f"[VirusTotal][DIAG] key_present={bool(key)} key_length={len(key)}",
-        flush=True,
+    _diag(
+        f"key_present={bool(key)} key_length={len(key)} "
+        f"ssl_verify={'certifi' if not isinstance(ssl_verify, bool) else ssl_verify}"
     )
 
     if not key:
@@ -260,7 +250,7 @@ def check_url(url: str) -> dict:
 
     cached = _cache_get(url_id)
     if cached is not None:
-        print("[VirusTotal][DIAG] CACHE_HIT available=True", flush=True)
+        _diag("CACHE_HIT available=True")
         return cached
 
     headers = _vt_headers()
@@ -269,11 +259,7 @@ def check_url(url: str) -> dict:
 
     for attempt in range(3):
         try:
-            logger.info(
-                "[VirusTotal] attempt=%s GET report url_id_prefix=%s…",
-                attempt + 1,
-                url_id[:12],
-            )
+            _diag(f"attempt={attempt + 1} GET report")
             with _make_session() as session:
                 report = _request(
                     session,
@@ -289,7 +275,7 @@ def check_url(url: str) -> dict:
                     return _error_result("VirusTotal forbidden (HTTP 403)")
                 if report.status_code == 429:
                     wait = _retry_after_seconds(report)
-                    logger.warning("[VirusTotal] HTTP 429 — waiting %.1fs then retry", wait)
+                    _diag(f"HTTP 429 — waiting {wait:.1f}s then retry")
                     if attempt < 2:
                         time.sleep(wait)
                         continue
@@ -375,46 +361,24 @@ def check_url(url: str) -> dict:
                     "permalink": permalink,
                     "domain": urlparse(url).netloc,
                 }
-                print(
-                    f"[VirusTotal][DIAG] SUCCESS status_code={last_status} "
-                    f"positives={positives} total={total}",
-                    flush=True,
-                )
-                logger.info(
-                    "[VirusTotal][DIAG] SUCCESS status_code=%s positives=%s total=%s",
-                    last_status,
-                    positives,
-                    total,
+                _diag(
+                    f"SUCCESS status_code={last_status} "
+                    f"positives={positives} total={total}"
                 )
                 _cache_set(url_id, result)
                 return result
 
         except (requests.Timeout, requests.RequestException, OSError, PermissionError) as exc:
             last_exc = exc
-            print(
-                f"[VirusTotal][DIAG] EXCEPTION attempt={attempt + 1} "
-                f"type={type(exc).__name__} detail={exc}",
-                flush=True,
-            )
-            logger.warning(
-                "[VirusTotal][DIAG] EXCEPTION attempt=%s type=%s detail=%s",
-                attempt + 1,
-                type(exc).__name__,
-                exc,
+            _diag(
+                f"EXCEPTION attempt={attempt + 1} "
+                f"type={type(exc).__name__} detail={exc}"
             )
             if attempt < 2:
                 time.sleep(0.8 * (attempt + 1))
                 continue
         except (KeyError, ValueError, TypeError) as exc:
-            print(
-                f"[VirusTotal][DIAG] PARSE_ERROR type={type(exc).__name__} detail={exc}",
-                flush=True,
-            )
-            logger.warning(
-                "[VirusTotal][DIAG] PARSE_ERROR type=%s detail=%s",
-                type(exc).__name__,
-                exc,
-            )
+            _diag(f"PARSE_ERROR type={type(exc).__name__} detail={exc}")
             return _error_result(f"Unexpected VirusTotal response: {exc}")
 
     detail = str(last_exc) if last_exc else "Network error"
@@ -424,8 +388,7 @@ def check_url(url: str) -> dict:
 
 
 def _error_result(detail: str, user_message: str | None = None) -> dict:
-    print(f"[VirusTotal][DIAG] UNAVAILABLE error_detail={detail}", flush=True)
-    logger.warning("[VirusTotal][DIAG] UNAVAILABLE error_detail=%s", detail)
+    _diag(f"UNAVAILABLE error_detail={detail}")
     return {
         "available": False,
         "error": user_message or USER_UNAVAILABLE_MSG,

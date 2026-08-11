@@ -118,8 +118,7 @@ def _attach_virustotal(result: dict, vt: dict) -> dict:
         # UI shows the yellow unavailable card only (no technical dump).
         result["correction_note"] = ""
         print(
-            f"[VirusTotal][DIAG] predict_attach available=False "
-            f"error_detail={vt.get('error_detail')!r}",
+            f"VT_DIAG predict_attach available=False error_detail={vt.get('error_detail')!r}",
             flush=True,
         )
         return result

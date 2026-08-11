@@ -4,10 +4,12 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: PYTHONUNBUFFERED=1 python -m gunicorn app:app --bind 0.0.0.0:$PORT --capture-output --enable-stdio-inheritance --log-level info
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: VIRUSTOTAL_SSL_VERIFY
         value: "true"
       - key: SECRET_KEY
