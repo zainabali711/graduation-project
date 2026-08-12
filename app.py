@@ -32,13 +32,16 @@ from admin_routes import admin_bp
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "url-shield-dev-secret-key")
 
-# Prefer DATABASE_URL (Render Postgres). Fall back to local SQLite for development.
+# Prefer DATABASE_URL (Supabase / any Postgres). Fall back to local SQLite for development.
 _database_url = (os.environ.get("DATABASE_URL") or "").strip()
 if _database_url.startswith("postgres://"):
-    # SQLAlchemy requires the postgresql:// scheme; Render still may emit postgres://
+    # SQLAlchemy requires the postgresql:// scheme (some hosts still emit postgres://).
     _database_url = _database_url.replace("postgres://", "postgresql://", 1)
 
 if _database_url:
+    # Supabase (and most hosted Postgres) require SSL from external hosts like Render.
+    if "sslmode=" not in _database_url.lower():
+        _database_url += ("&" if "?" in _database_url else "?") + "sslmode=require"
     app.config["SQLALCHEMY_DATABASE_URI"] = _database_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_pre_ping": True,

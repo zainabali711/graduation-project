@@ -12,10 +12,10 @@ services:
         value: "1"
       - key: VIRUSTOTAL_SSL_VERIFY
         value: "true"
+      # Set manually in Render Dashboard to your Supabase Session pooler URI
+      # (postgresql://...pooler.supabase.com:5432/postgres). App appends sslmode=require if missing.
       - key: DATABASE_URL
-        fromDatabase:
-          name: cyberscan-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         sync: false
       - key: MAIL_USERNAME
@@ -30,7 +30,3 @@ services:
         sync: false
       - key: ADMIN_SETUP_SECRET
         sync: false
-
-databases:
-  - name: cyberscan-db
-    plan: free
