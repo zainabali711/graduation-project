@@ -31,12 +31,27 @@ from admin_routes import admin_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "url-shield-dev-secret-key")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cyberscan.db"
+
+# Prefer DATABASE_URL (Render Postgres). Fall back to local SQLite for development.
+_database_url = (os.environ.get("DATABASE_URL") or "").strip()
+if _database_url.startswith("postgres://"):
+    # SQLAlchemy requires the postgresql:// scheme; Render still may emit postgres://
+    _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+
+if _database_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = _database_url
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cyberscan.db"
+    # Fail fast if local SQLite is locked instead of waiting forever.
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "connect_args": {"timeout": 10},
+    }
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# Fail fast if SQLite is locked instead of waiting forever.
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "connect_args": {"timeout": 10},
-}
 
 # Gmail SMTP — credentials come from .env only
 _mail_username = os.environ.get("MAIL_USERNAME", "").strip()
