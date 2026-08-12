@@ -11,16 +11,18 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env", override=True)
 
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_mail import Mail
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from auth_email import (
-    build_verification_url,
+    auth_log,
+    build_verification_path,
     confirm_verification_token,
     mail_configured,
-    send_verification_email,
+    queue_verification_email,
 )
 from model.domain_lookup import inspect_domain
 from model.predict import predict_url
@@ -31,6 +33,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "url-shield-dev-secret-key")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cyberscan.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Fail fast if SQLite is locked instead of waiting forever.
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "connect_args": {"timeout": 10},
+}
 
 # Gmail SMTP — credentials come from .env only
 _mail_username = os.environ.get("MAIL_USERNAME", "").strip()
@@ -45,12 +51,15 @@ app.config["MAIL_PASSWORD"] = _mail_password
 app.config["MAIL_DEFAULT_SENDER"] = _mail_sender or "noreply@cyberscan.local"
 # Fail fast on Render if Gmail SMTP is slow/blocked (Flask-Mail has no timeout).
 app.config["MAIL_TIMEOUT"] = int(os.environ.get("MAIL_TIMEOUT", "10"))
+
+
 def _detect_lan_ip() -> str:
-    """Best-effort local Wi‑Fi/LAN IPv4 for phone/tablet testing."""
+    """Best-effort local Wi‑Fi/LAN IPv4 for phone/tablet testing (local only)."""
     import socket
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(2)
         sock.connect(("8.8.8.8", 80))
         ip = sock.getsockname()[0]
         sock.close()
@@ -61,13 +70,14 @@ def _detect_lan_ip() -> str:
     return "127.0.0.1"
 
 
-# Base URL for verification emails.
+# Public base URL for emails only. Do NOT invent a LAN/private IP here — that
+# made "Verify in this browser" point at an unreachable host and hang forever.
 # On Render set APP_BASE_URL=https://your-service.onrender.com
-# Locally, if unset, fall back to this PC's LAN IP for device testing.
-_app_base = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
-if not _app_base:
-    _app_base = f"http://{_detect_lan_ip()}:5000"
-app.config["APP_BASE_URL"] = _app_base
+# If unset, build_verification_url uses the current request host (ProxyFix).
+app.config["APP_BASE_URL"] = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
+
+# Render (and most hosts) terminate TLS at a proxy — needed for correct https links.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 db.init_app(app)
 mail = Mail(app)
@@ -346,29 +356,38 @@ def login():
 
     error = None
     success = request.args.get("success")
-    verify_url = request.args.get("verify_url")
     show_resend = False
     form_username = ""
+    verify_token = session.get("pending_verify_token")
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         form_username = username
+        auth_log(f"login_start username={username!r}")
 
-        user = User.query.filter_by(username=username).first()
-        if user is None or not check_password_hash(user.password, password):
-            error = "Invalid username or password."
-        elif not user.is_verified:
-            error = (
-                "Please verify your email before logging in. "
-                "Use Resend below, then click Verify in this browser "
-                "(opening the email link on your phone will not work with localhost)."
-            )
-            show_resend = True
-            verify_url = build_verification_url(user)
-        else:
-            login_user(user)
-            return redirect(url_for("index"))
+        try:
+            user = User.query.filter_by(username=username).first()
+            if user is None or not check_password_hash(user.password, password):
+                auth_log(f"login_fail reason=bad_credentials username={username!r}")
+                error = "Invalid username or password."
+            elif not user.is_verified:
+                auth_log(f"login_fail reason=unverified user_id={user.id}")
+                error = (
+                    "Please verify your email before logging in. "
+                    "Use Resend below, then click Verify in this browser."
+                )
+                show_resend = True
+                verify_token, _path = build_verification_path(user)
+                session["pending_verify_token"] = verify_token
+            else:
+                login_user(user)
+                session.pop("pending_verify_token", None)
+                auth_log(f"login_ok user_id={user.id}")
+                return redirect(url_for("index"))
+        except Exception as exc:
+            auth_log(f"login_error type={type(exc).__name__} detail={exc}")
+            error = "Login failed due to a server error. Please try again."
 
     return render_template(
         "login.html",
@@ -379,7 +398,7 @@ def login():
         auth_mode="login",
         show_resend=show_resend,
         form_username=form_username,
-        verify_url=verify_url,
+        verify_token=verify_token,
     )
 
 
@@ -393,6 +412,7 @@ def resend_verification():
 
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
+    auth_log(f"resend_start username={username!r}")
 
     user = User.query.filter_by(username=username).first()
     if user is None or not check_password_hash(user.password, password):
@@ -405,6 +425,7 @@ def resend_verification():
             auth_mode="login",
             show_resend=False,
             form_username=username,
+            verify_token=None,
         )
 
     if user.is_verified:
@@ -414,6 +435,9 @@ def resend_verification():
                 success="This account is already verified. You can log in.",
             )
         )
+
+    verify_token, _path = build_verification_path(user)
+    session["pending_verify_token"] = verify_token
 
     if not mail_configured():
         return render_template(
@@ -425,36 +449,19 @@ def resend_verification():
             auth_mode="login",
             show_resend=True,
             form_username=username,
+            verify_token=verify_token,
         )
 
-    try:
-        verify_url = send_verification_email(mail, user)
-    except Exception:
-        # Still give the user a way to verify in-browser if SMTP fails/times out.
-        verify_url = build_verification_url(user)
-        return render_template(
-            "login.html",
-            accuracy=metrics.get("accuracy", 0),
-            active_page="login",
-            error=(
-                "Could not send the verification email (SMTP timed out or refused). "
-                "Use Verify in this browser below, or try Resend again later."
-            ),
-            success=None,
-            auth_mode="login",
-            show_resend=True,
-            form_username=username,
-            verify_url=verify_url,
-        )
-
+    # Never block the HTTP worker on SMTP — queue and return immediately.
+    queue_verification_email(app, user.id)
+    auth_log(f"resend_queued user_id={user.id}")
     return redirect(
         url_for(
             "login",
             success=(
-                f"Verification email sent to {user.email}. "
-                "Prefer the Verify button below if email is delayed."
+                f"Verification email queued for {user.email}. "
+                "If it does not arrive, click Verify in this browser below."
             ),
-            verify_url=verify_url,
         )
     )
 
@@ -472,6 +479,7 @@ def register():
         username = request.form.get("username", "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+        auth_log(f"register_start username={username!r} email={email!r}")
 
         if not username or not email or not password:
             error = "Please fill in username, email, and password."
@@ -496,33 +504,20 @@ def register():
                 )
                 db.session.add(user)
                 db.session.commit()
-                # Always keep the account. SMTP must never hang the request forever
-                # or roll back a successful registration when email delivery fails.
-                try:
-                    verify_url = send_verification_email(mail, user)
-                    return redirect(
-                        url_for(
-                            "login",
-                            success=(
-                                "Account created. Check your email for a verification "
-                                "link, or click Verify in this browser below."
-                            ),
-                            verify_url=verify_url,
-                        )
+                verify_token, _path = build_verification_path(user)
+                session["pending_verify_token"] = verify_token
+                # SMTP in background so registration never hangs the worker.
+                queue_verification_email(app, user.id)
+                auth_log(f"register_ok user_id={user.id} mail_queued=1")
+                return redirect(
+                    url_for(
+                        "login",
+                        success=(
+                            "Account created. Click Verify in this browser below "
+                            "(recommended), or wait for the email if it arrives."
+                        ),
                     )
-                except Exception:
-                    verify_url = build_verification_url(user)
-                    return redirect(
-                        url_for(
-                            "login",
-                            success=(
-                                "Account created, but the verification email could not "
-                                "be sent (SMTP timed out or refused). Click Verify in "
-                                "this browser below, then try logging in."
-                            ),
-                            verify_url=verify_url,
-                        )
-                    )
+                )
 
     return render_template(
         "login.html",
@@ -531,44 +526,66 @@ def register():
         error=error,
         success=None,
         auth_mode="register",
+        verify_token=session.get("pending_verify_token"),
     )
 
 
 @app.route("/verify/<token>")
 def verify_email(token):
     metrics = _load_metrics()
-    email = confirm_verification_token(token)
-    if not email:
+    auth_log("verify_start")
+    try:
+        email = confirm_verification_token(token)
+        if not email:
+            auth_log("verify_fail reason=bad_or_expired_token")
+            return render_template(
+                "login.html",
+                accuracy=metrics.get("accuracy", 0),
+                active_page="login",
+                error="This verification link is invalid or has expired.",
+                success=None,
+                auth_mode="login",
+                verify_token=None,
+            )
+
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            auth_log(f"verify_fail reason=no_user email={email!r}")
+            return render_template(
+                "login.html",
+                accuracy=metrics.get("accuracy", 0),
+                active_page="login",
+                error="No account was found for this verification link.",
+                success=None,
+                auth_mode="login",
+                verify_token=None,
+            )
+
+        if not user.is_verified:
+            user.is_verified = True
+            db.session.commit()
+            auth_log(f"verify_ok user_id={user.id} newly_verified=1")
+        else:
+            auth_log(f"verify_ok user_id={user.id} already_verified=1")
+
+        session.pop("pending_verify_token", None)
+        return redirect(
+            url_for(
+                "login",
+                success="Your email has been verified. You can log in now.",
+            )
+        )
+    except Exception as exc:
+        auth_log(f"verify_error type={type(exc).__name__} detail={exc}")
         return render_template(
             "login.html",
             accuracy=metrics.get("accuracy", 0),
             active_page="login",
-            error="This verification link is invalid or has expired.",
+            error="Verification failed due to a server error. Please try again.",
             success=None,
             auth_mode="login",
+            verify_token=None,
         )
-
-    user = User.query.filter_by(email=email).first()
-    if user is None:
-        return render_template(
-            "login.html",
-            accuracy=metrics.get("accuracy", 0),
-            active_page="login",
-            error="No account was found for this verification link.",
-            success=None,
-            auth_mode="login",
-        )
-
-    if not user.is_verified:
-        user.is_verified = True
-        db.session.commit()
-
-    return redirect(
-        url_for(
-            "login",
-            success="Your email has been verified. You can log in now.",
-        )
-    )
 
 
 @app.route("/logout")
@@ -583,7 +600,8 @@ def ping():
     return jsonify(
         {
             "ok": True,
-            "app_base_url": app.config.get("APP_BASE_URL"),
+            "app_base_url": app.config.get("APP_BASE_URL") or None,
+            "host": request.host,
             "message": "CyberScan is reachable from this device.",
         }
     )
@@ -592,7 +610,7 @@ def ping():
 if __name__ == "__main__":
     # Local/dev only. Production (Render) uses: gunicorn app:app
     port = int(os.environ.get("PORT", 5000))
-    lan_url = app.config.get("APP_BASE_URL", f"http://127.0.0.1:{port}")
+    lan_url = app.config.get("APP_BASE_URL") or f"http://{_detect_lan_ip()}:{port}"
     print("\n=== CyberScan ===")
     print(f"Local:   http://127.0.0.1:{port}")
     print(f"LAN/App: {lan_url}")

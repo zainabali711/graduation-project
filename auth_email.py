@@ -7,10 +7,12 @@ import os
 import smtplib
 import ssl
 import sys
+import threading
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from urllib.parse import urlparse
 
-from flask import current_app, render_template, url_for
+from flask import current_app, has_request_context, render_template, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 logger = logging.getLogger("cyberscan.mail")
@@ -19,11 +21,18 @@ if not logger.handlers:
     _handler.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(_handler)
     logger.setLevel(logging.INFO)
-    logger.propagate = True
+    logger.propagate = False
 
 
 def _mail_log(msg: str) -> None:
     line = f"MAIL_DIAG {msg}"
+    print(line, flush=True)
+    print(line, file=sys.stderr, flush=True)
+    logger.info(line)
+
+
+def auth_log(msg: str) -> None:
+    line = f"AUTH_DIAG {msg}"
     print(line, flush=True)
     print(line, file=sys.stderr, flush=True)
     logger.info(line)
@@ -45,23 +54,58 @@ def confirm_verification_token(token: str, max_age_seconds: int = 60 * 60 * 24) 
         return None
 
 
+def _is_unreachable_public_base(base: str) -> bool:
+    """True for localhost/LAN bases that phones/other devices cannot open."""
+    host = (urlparse(base).hostname or "").lower()
+    if not host or host in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    if host.startswith("192.168.") or host.startswith("10."):
+        return True
+    if host.startswith("172."):
+        try:
+            second = int(host.split(".")[1])
+            if 16 <= second <= 31:
+                return True
+        except (IndexError, ValueError):
+            pass
+    return False
+
+
+def build_verification_path(user) -> tuple[str, str]:
+    """Return (token, same-origin path) for in-browser verify — never a cross-host URL."""
+    token = generate_verification_token(user.email)
+    path = url_for("verify_email", token=token)
+    return token, path
+
+
 def build_verification_url(user) -> str:
     """
-    Build an absolute verify URL.
+    Absolute verify URL for emails.
 
-    Prefer APP_BASE_URL from config/.env so links work when opened from email
-    (phones cannot open http://127.0.0.1 — that points at the phone itself).
+    Prefer APP_BASE_URL when it is a public URL. Never fall back to a LAN/private
+    IP (that makes the in-browser button hang on phones). Inside a request, use
+    the current public host via url_for(_external=True) + ProxyFix.
     """
     token = generate_verification_token(user.email)
     path = url_for("verify_email", token=token)
     base = (
-        current_app.config.get("APP_BASE_URL")
-        or os.environ.get("APP_BASE_URL")
+        os.environ.get("APP_BASE_URL")
+        or current_app.config.get("APP_BASE_URL")
         or ""
     ).strip().rstrip("/")
+
+    if base and _is_unreachable_public_base(base):
+        _mail_log(f"ignore_bad_app_base_url base={base!r}")
+        base = ""
+
     if base:
         return f"{base}{path}"
-    return url_for("verify_email", token=token, _external=True)
+
+    if has_request_context():
+        # Uses the Host / X-Forwarded-* headers (ProxyFix on Render).
+        return url_for("verify_email", token=token, _external=True)
+
+    return path
 
 
 def send_verification_email(mail, user) -> str:
@@ -70,7 +114,7 @@ def send_verification_email(mail, user) -> str:
 
     Uses smtplib directly with an explicit timeout so Render workers do not hang
     forever when Gmail SMTP is slow/blocked. Flask-Mail has no reliable timeout.
-    Returns the verify URL (whether or not you also surface it in the UI).
+    Returns the absolute verify URL used in the email.
     """
     verify_url = build_verification_url(user)
     sender = (
@@ -126,6 +170,36 @@ def send_verification_email(mail, user) -> str:
         raise
 
     return verify_url
+
+
+def queue_verification_email(app, user_id: int) -> None:
+    """
+    Send verification email on a daemon thread so the HTTP worker is never blocked
+    by SMTP (even for the MAIL_TIMEOUT window).
+    """
+
+    def _worker() -> None:
+        with app.app_context():
+            from models import User, db as _db
+
+            user = _db.session.get(User, user_id)
+            if user is None:
+                _mail_log(f"async_skip missing_user_id={user_id}")
+                return
+            try:
+                send_verification_email(None, user)
+            except Exception as exc:
+                _mail_log(
+                    f"async_fail user_id={user_id} type={type(exc).__name__} detail={exc}"
+                )
+
+    thread = threading.Thread(
+        target=_worker,
+        name=f"verify-mail-{user_id}",
+        daemon=True,
+    )
+    thread.start()
+    _mail_log(f"async_queued user_id={user_id}")
 
 
 def mail_configured() -> bool:

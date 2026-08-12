@@ -17,10 +17,10 @@
     {% if success %}
     <div class="alert-success" role="alert">{{ success }}</div>
     {% endif %}
-    {% if verify_url %}
+    {% if verify_token %}
     <div class="auth-verify-box" role="status">
-      <p>Verify on this computer (Flask must be running):</p>
-      <a class="btn-teal auth-verify-link" href="{{ verify_url }}">Verify email in this browser</a>
+      <p>Verify on this site (same browser — no email needed):</p>
+      <a class="btn-teal auth-verify-link" href="{{ url_for('verify_email', token=verify_token) }}">Verify email in this browser</a>
     </div>
     {% endif %}
 
