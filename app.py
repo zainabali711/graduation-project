@@ -43,6 +43,8 @@ app.config["MAIL_USE_TLS"] = True
 app.config["MAIL_USERNAME"] = _mail_username
 app.config["MAIL_PASSWORD"] = _mail_password
 app.config["MAIL_DEFAULT_SENDER"] = _mail_sender or "noreply@cyberscan.local"
+# Fail fast on Render if Gmail SMTP is slow/blocked (Flask-Mail has no timeout).
+app.config["MAIL_TIMEOUT"] = int(os.environ.get("MAIL_TIMEOUT", "10"))
 def _detect_lan_ip() -> str:
     """Best-effort local Wi‑Fi/LAN IPv4 for phone/tablet testing."""
     import socket
@@ -428,19 +430,21 @@ def resend_verification():
     try:
         verify_url = send_verification_email(mail, user)
     except Exception:
+        # Still give the user a way to verify in-browser if SMTP fails/times out.
+        verify_url = build_verification_url(user)
         return render_template(
             "login.html",
             accuracy=metrics.get("accuracy", 0),
             active_page="login",
             error=(
-                "Could not send the verification email. "
-                "Check your Gmail App Password and spam folder settings."
+                "Could not send the verification email (SMTP timed out or refused). "
+                "Use Verify in this browser below, or try Resend again later."
             ),
             success=None,
             auth_mode="login",
             show_resend=True,
             form_username=username,
-            verify_url=None,
+            verify_url=verify_url,
         )
 
     return redirect(
@@ -448,7 +452,7 @@ def resend_verification():
             "login",
             success=(
                 f"Verification email sent to {user.email}. "
-                "Prefer the Verify button below (same computer as the app)."
+                "Prefer the Verify button below if email is delayed."
             ),
             verify_url=verify_url,
         )
@@ -492,22 +496,29 @@ def register():
                 )
                 db.session.add(user)
                 db.session.commit()
+                # Always keep the account. SMTP must never hang the request forever
+                # or roll back a successful registration when email delivery fails.
                 try:
                     verify_url = send_verification_email(mail, user)
-                except Exception:
-                    db.session.delete(user)
-                    db.session.commit()
-                    error = (
-                        "Account was not created because the verification email "
-                        "could not be sent. Check your Gmail App Password settings."
-                    )
-                else:
                     return redirect(
                         url_for(
                             "login",
                             success=(
-                                "Account created. Click Verify in this browser below "
-                                "(phone email links to localhost will not work)."
+                                "Account created. Check your email for a verification "
+                                "link, or click Verify in this browser below."
+                            ),
+                            verify_url=verify_url,
+                        )
+                    )
+                except Exception:
+                    verify_url = build_verification_url(user)
+                    return redirect(
+                        url_for(
+                            "login",
+                            success=(
+                                "Account created, but the verification email could not "
+                                "be sent (SMTP timed out or refused). Click Verify in "
+                                "this browser below, then try logging in."
                             ),
                             verify_url=verify_url,
                         )
