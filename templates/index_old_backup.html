@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}CyberScan — Choose a Service{% endblock %}
+
+{% block content %}
+<main class="page-shell landing home-landing">
+  <div class="landing-brand">
+    <svg class="landing-logo" viewBox="0 0 48 56" aria-hidden="true">
+      <path
+        fill="rgba(139, 26, 61, 0.08)"
+        stroke="#8B1A3D"
+        stroke-width="2.2"
+        stroke-linejoin="round"
+        d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
+      />
+    </svg>
+    <h1 class="landing-brand-name">CyberScan</h1>
+  </div>
+
+  <div class="landing-title-block">
+    <h2 class="landing-headline">Choose Your Security Service</h2>
+    <div class="title-scan-rail" aria-hidden="true">
+      <div class="scanning-line"></div>
+    </div>
+  </div>
+
+  <div class="service-row">
+    <article class="service-card">
+      <div class="service-icon" aria-hidden="true">🔍</div>
+      <h3 class="service-title">URL Scanner</h3>
+      <p class="service-desc">Detect malicious URLs using ML + VirusTotal</p>
+      <a href="/scan" class="btn-teal btn-inline">Start Scanning</a>
+    </article>
+
+    <article class="service-card">
+      <div class="service-icon" aria-hidden="true">🌐</div>
+      <h3 class="service-title">Domain Inspector</h3>
+      <p class="service-desc">Get full details about any domain — IP, location, age, SSL</p>
+      <a href="/domain" class="btn-teal btn-inline">Inspect Domain</a>
+    </article>
+  </div>
+</main>
+{% endblock %}

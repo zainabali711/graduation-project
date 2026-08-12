@@ -1,43 +1,272 @@
 {% extends "base.html" %}
 
-{% block title %}CyberScan — Choose a Service{% endblock %}
+{% block title %}CyberScan Elite — Home{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home-elite.css') }}">
+{% endblock %}
 
 {% block content %}
-<main class="page-shell landing home-landing">
-  <div class="landing-brand">
-    <svg class="landing-logo" viewBox="0 0 48 56" aria-hidden="true">
-      <path
-        fill="rgba(139, 26, 61, 0.08)"
-        stroke="#8B1A3D"
-        stroke-width="2.2"
-        stroke-linejoin="round"
-        d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
-      />
-    </svg>
-    <h1 class="landing-brand-name">CyberScan</h1>
-  </div>
-
-  <div class="landing-title-block">
-    <h2 class="landing-headline">Choose Your Security Service</h2>
-    <div class="title-scan-rail" aria-hidden="true">
-      <div class="scanning-line"></div>
+<main class="home-elite">
+  <header class="elite-hero">
+    <div class="elite-hero-copy">
+      <h1 class="elite-brand">CyberScan <span>Elite</span></h1>
+      <p class="elite-lead">
+        Scan suspicious links and inspect domains with ML + VirusTotal — clear results, no noise.
+      </p>
+      <a class="elite-cta" href="{{ url_for('scan') }}">Start a New Scan</a>
     </div>
-  </div>
 
-  <div class="service-row">
-    <article class="service-card">
-      <div class="service-icon" aria-hidden="true">🔍</div>
-      <h3 class="service-title">URL Scanner</h3>
-      <p class="service-desc">Detect malicious URLs using ML + VirusTotal</p>
-      <a href="/scan" class="btn-teal btn-inline">Start Scanning</a>
-    </article>
+    <div class="elite-hero-visual" aria-hidden="true">
+      <div class="elite-radar">
+        <div class="elite-radar-glow"></div>
+        <div class="elite-radar-ticks"></div>
+        <div class="elite-radar-ring"></div>
+        <div class="elite-radar-ring elite-radar-ring--mid"></div>
+        <div class="elite-radar-ring elite-radar-ring--inner"></div>
+        <div class="elite-radar-sweep"></div>
+        <div class="elite-radar-shield">
+          <svg viewBox="0 0 48 56" fill="none">
+            <path
+              fill="rgba(139, 26, 61, 0.14)"
+              stroke="#8B1A3D"
+              stroke-width="2.2"
+              stroke-linejoin="round"
+              d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
+            />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </header>
 
-    <article class="service-card">
-      <div class="service-icon" aria-hidden="true">🌐</div>
-      <h3 class="service-title">Domain Inspector</h3>
-      <p class="service-desc">Get full details about any domain — IP, location, age, SSL</p>
-      <a href="/domain" class="btn-teal btn-inline">Inspect Domain</a>
-    </article>
-  </div>
+  <section class="elite-section" id="services" aria-labelledby="services-title">
+    <div class="elite-section-head">
+      <h2 id="services-title">Services</h2>
+      <p>Two tools. Same burgundy workspace. Pick what you need.</p>
+    </div>
+
+    <div class="elite-services">
+      <article class="elite-svc">
+        <div class="elite-svc-top">
+          <span class="elite-svc-num">01</span>
+          <span class="elite-svc-cat">URL Security</span>
+        </div>
+        <div class="elite-svc-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M21 21l-4.3-4.3"/>
+          </svg>
+        </div>
+        <h3>URL Scanner</h3>
+        <p class="elite-svc-desc">Detect malicious URLs using ML + VirusTotal</p>
+        <ul class="elite-svc-features">
+          <li>Real-Time Threat Intel</li>
+          <li>Hybrid ML Engine</li>
+          <li>VirusTotal Verified</li>
+        </ul>
+        <a class="elite-svc-cta" href="{{ url_for('scan') }}">
+          Start Scanning
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </a>
+      </article>
+
+      <div class="elite-services-or" aria-hidden="true">OR</div>
+
+      <article class="elite-svc elite-svc--domain">
+        <div class="elite-svc-top">
+          <span class="elite-svc-num">02</span>
+          <span class="elite-svc-cat">Domain Intelligence</span>
+        </div>
+        <div class="elite-svc-icon globe" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+          </svg>
+        </div>
+        <h3>Domain Inspector</h3>
+        <p class="elite-svc-desc">Get full details about any domain — IP, location, age, SSL</p>
+        <ul class="elite-svc-features">
+          <li>IP</li>
+          <li>location</li>
+          <li>age, SSL</li>
+        </ul>
+        <a class="elite-svc-cta" href="{{ url_for('domain') }}">
+          Inspect Domain
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </a>
+      </article>
+    </div>
+  </section>
+
+  <section class="elite-section" aria-labelledby="how-title">
+    <div class="elite-section-head">
+      <h2 id="how-title">How It Works</h2>
+      <p>A short path from paste to verdict.</p>
+    </div>
+    <div class="elite-steps">
+      <div class="elite-step">
+        <div class="elite-step-node">1</div>
+        <h3>Submit</h3>
+        <p>Paste a URL or domain into the scanner.</p>
+      </div>
+      <div class="elite-step">
+        <div class="elite-step-node">2</div>
+        <h3>Analyze</h3>
+        <p>Features feed the RF + SVM hybrid model.</p>
+      </div>
+      <div class="elite-step">
+        <div class="elite-step-node">3</div>
+        <h3>Enrich</h3>
+        <p>Optional VirusTotal / WHOIS signals are merged in.</p>
+      </div>
+      <div class="elite-step">
+        <div class="elite-step-node">4</div>
+        <h3>Decide</h3>
+        <p>You get a clear Safe / Malicious result with confidence.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="elite-section" aria-labelledby="stats-title">
+    <div class="elite-section-head">
+      <h2 id="stats-title">Model Performance</h2>
+      <p>Metrics from the trained hybrid classifier (held-out test set).</p>
+    </div>
+    <div class="elite-stats">
+      <div class="elite-stat">
+        <span class="elite-stat-value" data-count="{{ '%.1f'|format(accuracy|float) }}" data-suffix="%">0%</span>
+        <span class="elite-stat-label">Accuracy</span>
+      </div>
+      <div class="elite-stat">
+        <span class="elite-stat-value" data-count="{{ '%.1f'|format(precision|float) }}" data-suffix="%">0%</span>
+        <span class="elite-stat-label">Precision</span>
+      </div>
+      <div class="elite-stat">
+        <span class="elite-stat-value" data-count="{{ '%.1f'|format(recall|float) }}" data-suffix="%">0%</span>
+        <span class="elite-stat-label">Recall</span>
+      </div>
+      <div class="elite-stat">
+        <span class="elite-stat-value" data-count="{{ '%.1f'|format(f1|float) }}" data-suffix="%">0%</span>
+        <span class="elite-stat-label">F1 Score</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="elite-section" aria-labelledby="recent-title">
+    <div class="elite-section-head">
+      <h2 id="recent-title">Recent Scans</h2>
+      <p>
+        {% if current_user.is_authenticated %}
+          Your latest URL and domain scans from this account.
+        {% else %}
+          Log in to see your saved scan history here.
+        {% endif %}
+      </p>
+    </div>
+
+    {% if not current_user.is_authenticated %}
+    <div class="elite-table-wrap">
+      <div class="elite-empty">
+        <p>Please <a href="{{ url_for('login') }}">log in</a> to view recent scans, or <a href="{{ url_for('scan') }}">start a new scan</a>.</p>
+      </div>
+    </div>
+    {% elif recent_items %}
+    <div class="elite-table-wrap">
+      <table class="elite-table">
+        <thead>
+          <tr>
+            <th>Target</th>
+            <th>Type</th>
+            <th>Result</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in recent_items %}
+          <tr>
+            <td class="elite-mono" title="{{ item.target }}">{{ item.target }}</td>
+            <td><span class="elite-tag elite-tag-type">{{ item.type }}</span></td>
+            <td>
+              {% if item.type == 'URL' %}
+                <span class="elite-tag {{ 'elite-tag-bad' if item.result == 'Malicious' else 'elite-tag-safe' }}">{{ item.result }}</span>
+              {% elif item.result == 'Valid' %}
+                <span class="elite-tag elite-tag-safe">{{ item.result }}</span>
+              {% else %}
+                <span class="elite-tag elite-tag-warn">{{ item.result }}</span>
+              {% endif %}
+            </td>
+            <td>{{ item.date.strftime('%b %d, %Y') if item.date else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="elite-note"><a href="{{ url_for('history') }}">View full history →</a></p>
+    {% else %}
+    <div class="elite-table-wrap">
+      <div class="elite-empty">
+        <p>No scans yet. <a href="{{ url_for('scan') }}">Scan a URL</a> or <a href="{{ url_for('domain') }}">inspect a domain</a> to build history.</p>
+      </div>
+    </div>
+    {% endif %}
+  </section>
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var nodes = document.querySelectorAll(".home-elite [data-count]");
+
+  function format(value) {
+    return (Math.round(value * 10) / 10).toFixed(1);
+  }
+
+  function setFinal(el) {
+    var target = parseFloat(el.getAttribute("data-count"));
+    var suffix = el.getAttribute("data-suffix") || "";
+    el.textContent = format(target) + suffix;
+  }
+
+  function animate(el) {
+    var target = parseFloat(el.getAttribute("data-count"));
+    var suffix = el.getAttribute("data-suffix") || "";
+    var duration = 450;
+    var start = null;
+
+    function frame(ts) {
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / duration);
+      var eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = format(target * eased) + suffix;
+      if (t < 1) requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  if (!("IntersectionObserver" in window)) {
+    nodes.forEach(setFinal);
+    return;
+  }
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      var el = entry.target;
+      observer.unobserve(el);
+      if (reduced) setFinal(el);
+      else animate(el);
+    });
+  }, { threshold: 0.4 });
+
+  nodes.forEach(function (el) { observer.observe(el); });
+})();
+</script>
 {% endblock %}

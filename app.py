@@ -168,9 +168,52 @@ def _save_domain_scan(result: dict) -> None:
 @app.route("/")
 def index():
     metrics = _load_metrics()
+    recent_items = []
+
+    if current_user.is_authenticated:
+        url_scans = (
+            UrlScan.query.filter_by(user_id=current_user.id)
+            .order_by(UrlScan.scan_date.desc())
+            .limit(8)
+            .all()
+        )
+        domain_scans = (
+            DomainScan.query.filter_by(user_id=current_user.id)
+            .order_by(DomainScan.scan_date.desc())
+            .limit(8)
+            .all()
+        )
+        for scan in url_scans:
+            recent_items.append(
+                {
+                    "target": scan.url,
+                    "type": "URL",
+                    "result": scan.result,
+                    "date": scan.scan_date,
+                }
+            )
+        for item in domain_scans:
+            recent_items.append(
+                {
+                    "target": item.domain,
+                    "type": "Domain",
+                    "result": item.ssl_status or "Could not verify",
+                    "date": item.scan_date,
+                }
+            )
+        recent_items.sort(
+            key=lambda row: row["date"] or datetime.min,
+            reverse=True,
+        )
+        recent_items = recent_items[:6]
+
     return render_template(
         "index.html",
         accuracy=metrics.get("accuracy", 0),
+        precision=metrics.get("precision", 0),
+        recall=metrics.get("recall", 0),
+        f1=metrics.get("f1", 0),
+        recent_items=recent_items,
         active_page="home",
     )
 
