@@ -1,4 +1,4 @@
-"""Email verification helpers for CyberScan auth (OTP via Resend / SMTP)."""
+"""Email verification helpers for CyberScan auth (OTP via Brevo / Resend / SMTP)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import threading
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import parseaddr
 
 import requests
 from flask import current_app, render_template
@@ -29,8 +30,7 @@ if not logger.handlers:
 OTP_TTL_SECONDS = 10 * 60
 OTP_RESEND_COOLDOWN_SECONDS = 60
 
-# Resend's built-in test sender — no domain verification required.
-# (Only delivers to the email on your Resend account until you verify a domain.)
+# Resend sandbox (only delivers to the Resend account email).
 RESEND_SANDBOX_FROM = "CyberScan <onboarding@resend.dev>"
 
 
@@ -94,62 +94,119 @@ def resend_cooldown_remaining(user) -> int:
     return max(0, int(remaining))
 
 
-def _resend_api_key() -> str:
+def _cfg(key: str, default: str = "") -> str:
     try:
-        key = (current_app.config.get("RESEND_API_KEY") or "").strip()
+        value = current_app.config.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
     except RuntimeError:
-        key = ""
-    return key or os.environ.get("RESEND_API_KEY", "").strip()
+        pass
+    return os.environ.get(key, default).strip()
+
+
+def _brevo_api_key() -> str:
+    return _cfg("BREVO_API_KEY")
+
+
+def _resend_api_key() -> str:
+    return _cfg("RESEND_API_KEY")
+
+
+def _parse_from_address(raw: str) -> tuple[str, str]:
+    """Return (display_name, email) from 'Name <email>' or bare email."""
+    name, email = parseaddr((raw or "").strip())
+    if not email and raw and "@" in raw:
+        email = raw.strip()
+    return (name or "CyberScan").strip(), email.strip()
 
 
 def _smtp_sender() -> str:
-    """From address for local SMTP only (not used by Resend)."""
-    try:
-        sender = (
-            current_app.config.get("MAIL_DEFAULT_SENDER")
-            or current_app.config.get("MAIL_USERNAME")
-            or ""
-        ).strip()
-    except RuntimeError:
-        sender = ""
+    """From address for local SMTP only."""
     return (
-        sender
-        or os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
-        or os.environ.get("MAIL_USERNAME", "").strip()
+        _cfg("MAIL_DEFAULT_SENDER")
+        or _cfg("MAIL_USERNAME")
         or "noreply@cyberscan.local"
     )
 
 
+def _brevo_sender() -> dict:
+    """
+    Brevo sender object. Use a sender email verified in the Brevo dashboard
+    (Senders → Add a sender). Gmail is fine after Brevo email verification.
+    """
+    raw = (
+        _cfg("BREVO_FROM")
+        or _cfg("MAIL_DEFAULT_SENDER")
+        or _cfg("MAIL_USERNAME")
+    )
+    name, email = _parse_from_address(raw)
+    if not email or "@" not in email:
+        raise RuntimeError(
+            "BREVO_FROM (or MAIL_DEFAULT_SENDER / MAIL_USERNAME) must be a "
+            "verified sender email in your Brevo account."
+        )
+    if _cfg("BREVO_FROM_NAME"):
+        name = _cfg("BREVO_FROM_NAME")
+    return {"name": name or "CyberScan", "email": email}
+
+
 def _resend_from() -> str:
-    """
-    From address for Resend HTTPS sends.
-
-    Never fall back to MAIL_USERNAME / Gmail — Resend rejects unverified domains
-    (403). Use onboarding@resend.dev unless RESEND_FROM is explicitly a
-    non-gmail address (e.g. after verifying your own domain).
-    """
-    try:
-        configured = (current_app.config.get("RESEND_FROM") or "").strip()
-    except RuntimeError:
-        configured = ""
-    configured = configured or os.environ.get("RESEND_FROM", "").strip()
-
+    """From address for Resend HTTPS (sandbox unless custom verified domain)."""
+    configured = _cfg("RESEND_FROM")
     if configured:
-        lower = configured.lower()
-        # Extract bare email if "Name <email>" form
-        if "<" in configured and ">" in configured:
-            bare = configured[configured.rfind("<") + 1 : configured.rfind(">")].strip().lower()
-        else:
-            bare = lower
-        if bare.endswith("@gmail.com") or bare.endswith("@googlemail.com"):
+        _, bare = _parse_from_address(configured)
+        bare_l = bare.lower()
+        if bare_l.endswith("@gmail.com") or bare_l.endswith("@googlemail.com"):
             _mail_log(
                 f"from_override reason=gmail_unverified configured={configured!r} "
                 f"using={RESEND_SANDBOX_FROM!r}"
             )
             return RESEND_SANDBOX_FROM
         return configured
-
     return RESEND_SANDBOX_FROM
+
+
+def _send_via_brevo(
+    *,
+    to_email: str,
+    to_name: str,
+    subject: str,
+    text_body: str,
+    html_body: str,
+    timeout: int,
+) -> None:
+    api_key = _brevo_api_key()
+    sender = _brevo_sender()
+    _mail_log(
+        f"send_start transport=brevo to={to_email!r} "
+        f"from={sender.get('email')!r} name={sender.get('name')!r}"
+    )
+    resp = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={
+            "api-key": api_key,
+            "accept": "application/json",
+            "content-type": "application/json",
+        },
+        json={
+            "sender": sender,
+            "to": [{"email": to_email, "name": (to_name or to_email)[:70]}],
+            "subject": subject,
+            "htmlContent": html_body,
+            "textContent": text_body,
+        },
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        detail = resp.text[:500]
+        _mail_log(f"send_fail transport=brevo status={resp.status_code} detail={detail}")
+        raise RuntimeError(f"Brevo API error {resp.status_code}: {detail}")
+    message_id = ""
+    try:
+        message_id = resp.json().get("messageId") or ""
+    except Exception:
+        pass
+    _mail_log(f"send_ok transport=brevo to={to_email!r} id={message_id}")
 
 
 def _send_via_resend(
@@ -193,12 +250,15 @@ def _send_via_smtp(
     text_body: str,
     html_body: str,
 ) -> None:
-    username = (current_app.config.get("MAIL_USERNAME") or "").strip()
-    password = (current_app.config.get("MAIL_PASSWORD") or "").strip().replace(" ", "")
-    server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
-    port = int(current_app.config.get("MAIL_PORT", 587))
-    use_tls = bool(current_app.config.get("MAIL_USE_TLS", True))
-    timeout = int(current_app.config.get("MAIL_TIMEOUT", 10))
+    username = _cfg("MAIL_USERNAME")
+    password = _cfg("MAIL_PASSWORD").replace(" ", "")
+    try:
+        server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
+        port = int(current_app.config.get("MAIL_PORT", 587))
+        use_tls = bool(current_app.config.get("MAIL_USE_TLS", True))
+        timeout = int(current_app.config.get("MAIL_TIMEOUT", 10))
+    except RuntimeError:
+        server, port, use_tls, timeout = "smtp.gmail.com", 587, True, 10
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -231,15 +291,15 @@ def _send_via_smtp(
         err = str(exc).lower()
         if "101" in str(exc) or "unreachable" in err or "timed out" in err:
             hint = (
-                " | hint=Render free tier blocks outbound SMTP ports 25/465/587. "
-                "Set RESEND_API_KEY to send over HTTPS, or upgrade the Render plan."
+                " | hint=Render free tier blocks outbound SMTP. "
+                "Set BREVO_API_KEY to send over HTTPS."
             )
         _mail_log(f"send_fail transport=smtp type={type(exc).__name__} detail={exc}{hint}")
         raise
 
 
 def send_otp_email(user, code: str) -> None:
-    """Send a 6-digit OTP email (Resend HTTPS preferred)."""
+    """Send a 6-digit OTP email (Brevo HTTPS preferred)."""
     subject = "Your CyberScan verification code"
     text_body = (
         f"Hello {user.username},\n\n"
@@ -254,14 +314,27 @@ def send_otp_email(user, code: str) -> None:
         code=code,
     )
 
-    timeout = int(current_app.config.get("MAIL_TIMEOUT", 15))
+    timeout = int(_cfg("MAIL_TIMEOUT") or "15")
+    timeout = max(timeout, 15)
+
+    if _brevo_api_key():
+        _send_via_brevo(
+            to_email=user.email,
+            to_name=user.username,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+            timeout=timeout,
+        )
+        return
+
     if _resend_api_key():
         _send_via_resend(
             to_email=user.email,
             subject=subject,
             text_body=text_body,
             html_body=html_body,
-            timeout=max(timeout, 15),
+            timeout=timeout,
         )
         return
 
@@ -302,21 +375,10 @@ def queue_otp_email(app, user_id: int, code: str) -> None:
 
 
 def mail_configured() -> bool:
-    """True when Resend API key or Gmail SMTP credentials are available."""
-    if _resend_api_key():
+    """True when Brevo, Resend, or local SMTP credentials are available."""
+    if _brevo_api_key() or _resend_api_key():
         return True
 
-    username = ""
-    password = ""
-    try:
-        username = (current_app.config.get("MAIL_USERNAME") or "").strip()
-        password = (current_app.config.get("MAIL_PASSWORD") or "").strip().replace(" ", "")
-    except RuntimeError:
-        pass
-
-    if not username:
-        username = os.environ.get("MAIL_USERNAME", "").strip()
-    if not password:
-        password = os.environ.get("MAIL_PASSWORD", "").strip().replace(" ", "")
-
+    username = _cfg("MAIL_USERNAME")
+    password = _cfg("MAIL_PASSWORD").replace(" ", "")
     return bool(username and password)

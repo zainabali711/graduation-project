@@ -74,8 +74,12 @@ app.config["MAIL_PASSWORD"] = _mail_password
 app.config["MAIL_DEFAULT_SENDER"] = _mail_sender or "noreply@cyberscan.local"
 # Fail fast on Render if Gmail SMTP is slow/blocked (Flask-Mail has no timeout).
 app.config["MAIL_TIMEOUT"] = int(os.environ.get("MAIL_TIMEOUT", "10"))
+# Brevo (preferred on Render) — verify your Gmail as a sender in Brevo dashboard.
+app.config["BREVO_API_KEY"] = os.environ.get("BREVO_API_KEY", "").strip()
+app.config["BREVO_FROM"] = os.environ.get("BREVO_FROM", "").strip()
+app.config["BREVO_FROM_NAME"] = os.environ.get("BREVO_FROM_NAME", "").strip() or "CyberScan"
+# Optional Resend fallback (sandbox only delivers to your Resend account email).
 app.config["RESEND_API_KEY"] = os.environ.get("RESEND_API_KEY", "").strip()
-# Prefer explicit RESEND_FROM; Gmail values are ignored by auth_email (use onboarding@resend.dev).
 app.config["RESEND_FROM"] = os.environ.get("RESEND_FROM", "").strip() or "CyberScan <onboarding@resend.dev>"
 
 
@@ -517,7 +521,7 @@ def login():
                 if not mail_configured():
                     return _auth_page(
                         auth_mode="otp",
-                        error="Email is not configured. Add RESEND_API_KEY on Render.",
+                        error="Email is not configured. Add BREVO_API_KEY on Render.",
                         masked_email=mask_email(user.email),
                         resend_cooldown=resend_cooldown_remaining(user),
                     )
@@ -580,7 +584,8 @@ def register():
         error = "That email is already registered."
     elif not mail_configured():
         error = (
-            "Email is not configured yet. On Render free tier add RESEND_API_KEY. "
+            "Email is not configured yet. On Render add BREVO_API_KEY "
+            "(and verify your sender email in Brevo). "
             "Locally you can use MAIL_USERNAME and MAIL_PASSWORD."
         )
     else:
