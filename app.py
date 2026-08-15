@@ -260,6 +260,7 @@ def index():
         recall=metrics.get("recall", 0),
         f1=metrics.get("f1", 0),
         recent_items=recent_items,
+        welcome_message=session.pop("welcome_message", None),
         active_page="home",
     )
 
@@ -543,6 +544,7 @@ def login():
             else:
                 login_user(user)
                 session.pop("pending_user_id", None)
+                session["welcome_message"] = f"Welcome back, {user.username}!"
                 auth_log(f"login_ok user_id={user.id}")
                 return redirect(url_for("index"))
         except Exception as exc:
@@ -638,6 +640,7 @@ def verify_otp():
         db.session.commit()
         login_user(user)
         session.pop("pending_user_id", None)
+        session["welcome_message"] = f"Welcome back, {user.username}!"
         return redirect(url_for("index"))
 
     if not verify_user_otp(user, code):
@@ -654,6 +657,7 @@ def verify_otp():
     db.session.commit()
     login_user(user)
     session.pop("pending_user_id", None)
+    session["welcome_message"] = f"Welcome, {user.username}!"
     auth_log(f"otp_verify_ok user_id={user.id}")
     return redirect(url_for("index"))
 
