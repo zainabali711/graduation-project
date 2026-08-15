@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import smtplib
+import socket
 import ssl
 import sys
 import threading
@@ -12,6 +13,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
 
+import requests
 from flask import current_app, has_request_context, render_template, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
@@ -25,15 +27,14 @@ if not logger.handlers:
 
 
 def _mail_log(msg: str) -> None:
+    # Single stream to avoid triplicate Render log lines.
     line = f"MAIL_DIAG {msg}"
-    print(line, flush=True)
     print(line, file=sys.stderr, flush=True)
     logger.info(line)
 
 
 def auth_log(msg: str) -> None:
     line = f"AUTH_DIAG {msg}"
-    print(line, flush=True)
     print(line, file=sys.stderr, flush=True)
     logger.info(line)
 
@@ -106,7 +107,6 @@ def build_verification_url(user, token: str | None = None) -> str:
         return f"{base}{path}"
 
     if has_request_context():
-        # Uses the Host / X-Forwarded-* headers (ProxyFix on Render).
         return url_for("verify_email", token=token, _external=True)
 
     raise RuntimeError(
@@ -114,25 +114,76 @@ def build_verification_url(user, token: str | None = None) -> str:
     )
 
 
-def send_verification_email(mail, user, verify_url: str | None = None) -> str:
-    """
-    Send a verification email with a signed token link.
+def _resend_api_key() -> str:
+    try:
+        key = (current_app.config.get("RESEND_API_KEY") or "").strip()
+    except RuntimeError:
+        key = ""
+    return key or os.environ.get("RESEND_API_KEY", "").strip()
 
-    Uses smtplib directly with an explicit timeout so Render workers do not hang
-    forever when Gmail SMTP is slow/blocked. Flask-Mail has no reliable timeout.
 
-    Prefer passing verify_url built inside the HTTP request (see
-    queue_verification_email). Building it here requires a request context or
-    APP_BASE_URL.
-    """
-    if not verify_url:
-        verify_url = build_verification_url(user)
-
+def _mail_sender() -> str:
+    try:
+        sender = (
+            current_app.config.get("RESEND_FROM")
+            or current_app.config.get("MAIL_DEFAULT_SENDER")
+            or current_app.config.get("MAIL_USERNAME")
+            or ""
+        ).strip()
+    except RuntimeError:
+        sender = ""
     sender = (
-        current_app.config.get("MAIL_DEFAULT_SENDER")
-        or current_app.config.get("MAIL_USERNAME")
-        or ""
+        sender
+        or os.environ.get("RESEND_FROM", "").strip()
+        or os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
+        or os.environ.get("MAIL_USERNAME", "").strip()
     )
+    # Resend sandbox sender works without a custom domain.
+    return sender or "CyberScan <onboarding@resend.dev>"
+
+
+def _send_via_resend(
+    *,
+    to_email: str,
+    subject: str,
+    text_body: str,
+    html_body: str,
+    timeout: int,
+) -> None:
+    """Send mail over HTTPS (port 443) — works on Render free tier where SMTP is blocked."""
+    api_key = _resend_api_key()
+    sender = _mail_sender()
+    _mail_log(f"send_start transport=resend to={to_email!r} from={sender!r}")
+    resp = requests.post(
+        "https://api.resend.com/emails",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "from": sender,
+            "to": [to_email],
+            "subject": subject,
+            "text": text_body,
+            "html": html_body,
+        },
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        detail = resp.text[:500]
+        _mail_log(f"send_fail transport=resend status={resp.status_code} detail={detail}")
+        raise RuntimeError(f"Resend API error {resp.status_code}: {detail}")
+    _mail_log(f"send_ok transport=resend to={to_email!r} id={resp.json().get('id')}")
+
+
+def _send_via_smtp(
+    *,
+    to_email: str,
+    sender: str,
+    subject: str,
+    text_body: str,
+    html_body: str,
+) -> None:
     username = (current_app.config.get("MAIL_USERNAME") or "").strip()
     password = (current_app.config.get("MAIL_PASSWORD") or "").strip().replace(" ", "")
     server = current_app.config.get("MAIL_SERVER", "smtp.gmail.com")
@@ -140,6 +191,57 @@ def send_verification_email(mail, user, verify_url: str | None = None) -> str:
     use_tls = bool(current_app.config.get("MAIL_USE_TLS", True))
     timeout = int(current_app.config.get("MAIL_TIMEOUT", 10))
 
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg.attach(MIMEText(text_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    _mail_log(
+        f"send_start transport=smtp to={to_email!r} server={server}:{port} "
+        f"timeout={timeout}s tls={use_tls}"
+    )
+
+    try:
+        # Prefer IPv4 resolution — Gmail AAAA can yield Errno 101 on hosts without IPv6 egress.
+        # Note: Render *free* still blocks SMTP ports entirely; use RESEND_API_KEY there.
+        infos = socket.getaddrinfo(server, port, socket.AF_INET, socket.SOCK_STREAM)
+        if not infos:
+            raise OSError(f"No IPv4 address for {server}:{port}")
+
+        with smtplib.SMTP(server, port, timeout=timeout) as smtp:
+            smtp.ehlo()
+            if use_tls:
+                context = ssl.create_default_context()
+                smtp.starttls(context=context)
+                smtp.ehlo()
+            smtp.login(username, password)
+            smtp.sendmail(sender, [to_email], msg.as_string())
+        _mail_log(f"send_ok transport=smtp to={to_email!r}")
+    except (smtplib.SMTPException, OSError, TimeoutError) as exc:
+        hint = ""
+        err = str(exc).lower()
+        if "101" in str(exc) or "unreachable" in err or "timed out" in err:
+            hint = (
+                " | hint=Render free tier blocks outbound SMTP ports 25/465/587. "
+                "Set RESEND_API_KEY to send over HTTPS, or upgrade the Render plan."
+            )
+        _mail_log(f"send_fail transport=smtp type={type(exc).__name__} detail={exc}{hint}")
+        raise
+
+
+def send_verification_email(mail, user, verify_url: str | None = None) -> str:
+    """
+    Send a verification email with a signed token link.
+
+    On Render free tier, Gmail SMTP is blocked (Errno 101 / unreachable). Prefer
+    Resend HTTPS when RESEND_API_KEY is set; fall back to SMTP for local/dev.
+    """
+    if not verify_url:
+        verify_url = build_verification_url(user)
+
+    subject = "Verify your CyberScan account"
     text_body = (
         f"Hello {user.username},\n\n"
         "Thank you for registering with CyberScan.\n"
@@ -154,42 +256,38 @@ def send_verification_email(mail, user, verify_url: str | None = None) -> str:
         verify_url=verify_url,
     )
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Verify your CyberScan account"
-    msg["From"] = sender
-    msg["To"] = user.email
-    msg.attach(MIMEText(text_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    timeout = int(current_app.config.get("MAIL_TIMEOUT", 15))
+    if _resend_api_key():
+        _send_via_resend(
+            to_email=user.email,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+            timeout=max(timeout, 15),
+        )
+        return verify_url
 
-    _mail_log(
-        f"send_start to={user.email!r} server={server}:{port} "
-        f"timeout={timeout}s tls={use_tls}"
+    smtp_sender = (
+        (current_app.config.get("MAIL_DEFAULT_SENDER") or "").strip()
+        or (current_app.config.get("MAIL_USERNAME") or "").strip()
+        or os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
+        or os.environ.get("MAIL_USERNAME", "").strip()
     )
-
-    try:
-        with smtplib.SMTP(server, port, timeout=timeout) as smtp:
-            smtp.ehlo()
-            if use_tls:
-                context = ssl.create_default_context()
-                smtp.starttls(context=context)
-                smtp.ehlo()
-            smtp.login(username, password)
-            smtp.sendmail(sender, [user.email], msg.as_string())
-        _mail_log(f"send_ok to={user.email!r}")
-    except (smtplib.SMTPException, OSError, TimeoutError) as exc:
-        _mail_log(f"send_fail type={type(exc).__name__} detail={exc}")
-        raise
-
+    _send_via_smtp(
+        to_email=user.email,
+        sender=smtp_sender,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
     return verify_url
 
 
 def queue_verification_email(app, user_id: int, verify_url: str) -> None:
     """
-    Send verification email on a daemon thread so the HTTP worker is never blocked
-    by SMTP (even for the MAIL_TIMEOUT window).
+    Send verification email on a daemon thread so the HTTP worker is never blocked.
 
-    verify_url must be built in the active request before calling this — url_for
-    cannot run safely on a background thread without SERVER_NAME.
+    verify_url must be built in the active request before calling this.
     """
     if not verify_url:
         raise ValueError("verify_url is required for background email send")
@@ -219,7 +317,10 @@ def queue_verification_email(app, user_id: int, verify_url: str) -> None:
 
 
 def mail_configured() -> bool:
-    """True when Gmail credentials are available in Flask config or environment."""
+    """True when Resend API key or Gmail SMTP credentials are available."""
+    if _resend_api_key():
+        return True
+
     username = ""
     password = ""
     try:

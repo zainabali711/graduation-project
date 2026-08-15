@@ -24,6 +24,11 @@ services:
         sync: false
       - key: MAIL_DEFAULT_SENDER
         sync: false
+      # Required on Render free tier (SMTP ports are blocked). https://resend.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
       - key: VIRUSTOTAL_API_KEY
         sync: false
       - key: APP_BASE_URL

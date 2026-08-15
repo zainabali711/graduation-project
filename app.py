@@ -70,6 +70,8 @@ app.config["MAIL_PASSWORD"] = _mail_password
 app.config["MAIL_DEFAULT_SENDER"] = _mail_sender or "noreply@cyberscan.local"
 # Fail fast on Render if Gmail SMTP is slow/blocked (Flask-Mail has no timeout).
 app.config["MAIL_TIMEOUT"] = int(os.environ.get("MAIL_TIMEOUT", "10"))
+app.config["RESEND_API_KEY"] = os.environ.get("RESEND_API_KEY", "").strip()
+app.config["RESEND_FROM"] = os.environ.get("RESEND_FROM", "").strip()
 
 
 def _detect_lan_ip() -> str:
@@ -555,8 +557,9 @@ def register():
         else:
             if not mail_configured():
                 error = (
-                    "Email is not configured yet. Add MAIL_USERNAME and "
-                    "MAIL_PASSWORD to your .env file, then try again."
+                    "Email is not configured yet. On Render free tier, Gmail SMTP "
+                    "is blocked — add RESEND_API_KEY (HTTPS). Locally you can use "
+                    "MAIL_USERNAME and MAIL_PASSWORD instead."
                 )
             else:
                 user = User(
