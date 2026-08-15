@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Login — CyberScan{% endblock %}
+
+{% block content %}
+<main class="auth-page">
+  <section class="card auth-card">
+    {% set mode = auth_mode if auth_mode is defined else 'login' %}
+    <div class="auth-toggle" role="tablist">
+      <button type="button" class="{% if mode != 'register' %}active{% endif %}" data-auth-tab="login">Login</button>
+      <button type="button" class="{% if mode == 'register' %}active{% endif %}" data-auth-tab="register">Register</button>
+    </div>
+
+    {% if error %}
+    <div class="alert-error" role="alert">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div class="alert-success" role="alert">{{ success }}</div>
+    {% endif %}
+    {% if verify_token %}
+    <div class="auth-verify-box" role="status">
+      <p>Verify on this site (same browser — no email needed):</p>
+      <a class="btn-teal auth-verify-link" href="{{ url_for('verify_email', token=verify_token) }}">Verify email in this browser</a>
+    </div>
+    {% endif %}
+
+    <form id="loginForm" class="auth-form {% if mode != 'register' %}active{% endif %}" action="/login" method="POST" data-auth-form="login" {% if mode == 'register' %}hidden{% endif %}>
+      <div class="form-field">
+        <label for="loginUser">Username</label>
+        <input id="loginUser" name="username" type="text" placeholder="Enter username" autocomplete="username" value="{{ form_username|default('', true) }}" required>
+      </div>
+      <div class="form-field">
+        <label for="loginPass">Password</label>
+        <div class="password-wrap">
+          <input id="loginPass" name="password" type="password" placeholder="Enter password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" data-password-target="loginPass" aria-label="Show password">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn-teal">Login</button>
+      <button
+        type="submit"
+        class="btn-ghost auth-resend-btn{% if show_resend %} auth-resend-btn--urgent{% endif %}"
+        formaction="/resend-verification"
+        formmethod="POST"
+      >Resend verification email</button>
+      <p class="auth-resend-hint">Didn’t get the email? Enter your password above, then click Resend. Check spam too.</p>
+    </form>
+
+    <form id="registerForm" class="auth-form {% if mode == 'register' %}active{% endif %}" action="/register" method="POST" data-auth-form="register" {% if mode != 'register' %}hidden{% endif %}>
+      <div class="form-field">
+        <label for="regUser">Username</label>
+        <input id="regUser" name="username" type="text" placeholder="Choose a username" autocomplete="username" required>
+      </div>
+      <div class="form-field">
+        <label for="regEmail">Email</label>
+        <input id="regEmail" name="email" type="email" placeholder="Enter email" autocomplete="email" required>
+      </div>
+      <div class="form-field">
+        <label for="regPass">Password</label>
+        <div class="password-wrap">
+          <input id="regPass" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required minlength="6">
+          <button type="button" class="password-toggle" data-password-target="regPass" aria-label="Show password">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn-teal">Create Account</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

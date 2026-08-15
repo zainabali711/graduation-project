@@ -18,12 +18,16 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from auth_email import (
+    OTP_RESEND_COOLDOWN_SECONDS,
+    assign_user_otp,
     auth_log,
-    build_verification_path,
-    build_verification_url,
-    confirm_verification_token,
+    clear_user_otp,
+    generate_otp_code,
     mail_configured,
-    queue_verification_email,
+    mask_email,
+    queue_otp_email,
+    resend_cooldown_remaining,
+    verify_user_otp,
 )
 from model.domain_lookup import inspect_domain
 from model.predict import predict_url
@@ -91,13 +95,10 @@ def _detect_lan_ip() -> str:
     return "127.0.0.1"
 
 
-# Public base URL for emails only. Do NOT invent a LAN/private IP here — that
-# made "Verify in this browser" point at an unreachable host and hang forever.
-# On Render set APP_BASE_URL=https://your-service.onrender.com
-# If unset, build_verification_url uses the current request host (ProxyFix).
+# Optional public site URL (legacy / diagnostics). OTP emails no longer embed links.
 app.config["APP_BASE_URL"] = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")
 
-# Render (and most hosts) terminate TLS at a proxy — needed for correct https links.
+# Render terminates TLS at a proxy — keep ProxyFix for correct request URLs.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 db.init_app(app)
@@ -118,8 +119,45 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
+def _ensure_user_otp_columns() -> None:
+    """Add OTP columns on existing Postgres/SQLite DBs (create_all won't alter)."""
+    from sqlalchemy import inspect, text
+
+    try:
+        inspector = inspect(db.engine)
+        if "users" not in inspector.get_table_names():
+            return
+        existing = {col["name"] for col in inspector.get_columns("users")}
+    except Exception as exc:
+        auth_log(f"otp_schema_inspect_fail detail={exc}")
+        return
+
+    needed = {
+        "otp_hash": "VARCHAR(255)",
+        "otp_expires_at": "TIMESTAMP",
+        "otp_last_sent_at": "TIMESTAMP",
+    }
+    dialect = db.engine.dialect.name
+    for name, sql_type in needed.items():
+        if name in existing:
+            continue
+        try:
+            if dialect == "postgresql":
+                db.session.execute(
+                    text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {name} {sql_type}")
+                )
+            else:
+                db.session.execute(text(f"ALTER TABLE users ADD COLUMN {name} {sql_type}"))
+            db.session.commit()
+            auth_log(f"otp_schema_added column={name}")
+        except Exception as exc:
+            db.session.rollback()
+            auth_log(f"otp_schema_add_fail column={name} detail={exc}")
+
+
 with app.app_context():
     db.create_all()
+    _ensure_user_otp_columns()
 
 
 def _load_metrics():
@@ -411,18 +449,55 @@ def about():
     )
 
 
+def _auth_page(
+    *,
+    auth_mode="login",
+    error=None,
+    success=None,
+    form_username="",
+    masked_email=None,
+    resend_cooldown=0,
+):
+    metrics = _load_metrics()
+    return render_template(
+        "login.html",
+        accuracy=metrics.get("accuracy", 0),
+        active_page="login",
+        error=error,
+        success=success,
+        auth_mode=auth_mode,
+        form_username=form_username,
+        masked_email=masked_email,
+        resend_cooldown=int(resend_cooldown or 0),
+        otp_resend_window=OTP_RESEND_COOLDOWN_SECONDS,
+    )
+
+
+def _issue_and_queue_otp(user, *, force: bool = False) -> int:
+    """
+    Create a new OTP, persist hash, queue email.
+    Returns remaining cooldown seconds if blocked (and force is False), else 0.
+    """
+    remaining = resend_cooldown_remaining(user)
+    if remaining > 0 and not force:
+        return remaining
+
+    code = generate_otp_code()
+    assign_user_otp(user, code)
+    db.session.commit()
+    queue_otp_email(app, user.id, code)
+    auth_log(f"otp_queued user_id={user.id}")
+    return OTP_RESEND_COOLDOWN_SECONDS
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    metrics = _load_metrics()
-
     if current_user.is_authenticated:
         return redirect(url_for("index"))
 
     error = None
     success = request.args.get("success")
-    show_resend = False
     form_username = ""
-    verify_token = session.get("pending_verify_token")
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -436,223 +511,207 @@ def login():
                 auth_log(f"login_fail reason=bad_credentials username={username!r}")
                 error = "Invalid username or password."
             elif not user.is_verified:
-                auth_log(f"login_fail reason=unverified user_id={user.id}")
-                error = (
-                    "Please verify your email before logging in. "
-                    "Use Resend below, then click Verify in this browser."
+                auth_log(f"login_unverified user_id={user.id}")
+                session["pending_user_id"] = user.id
+                if not mail_configured():
+                    return _auth_page(
+                        auth_mode="otp",
+                        error="Email is not configured. Add RESEND_API_KEY on Render.",
+                        masked_email=mask_email(user.email),
+                        resend_cooldown=resend_cooldown_remaining(user),
+                    )
+                remaining = resend_cooldown_remaining(user)
+                if remaining > 0:
+                    return _auth_page(
+                        auth_mode="otp",
+                        success="Enter the verification code sent to your email.",
+                        masked_email=mask_email(user.email),
+                        resend_cooldown=remaining,
+                    )
+                _issue_and_queue_otp(user, force=True)
+                return _auth_page(
+                    auth_mode="otp",
+                    success="Enter the verification code sent to your email.",
+                    masked_email=mask_email(user.email),
+                    resend_cooldown=OTP_RESEND_COOLDOWN_SECONDS,
                 )
-                show_resend = True
-                verify_token, _path = build_verification_path(user)
-                session["pending_verify_token"] = verify_token
             else:
                 login_user(user)
-                session.pop("pending_verify_token", None)
+                session.pop("pending_user_id", None)
                 auth_log(f"login_ok user_id={user.id}")
                 return redirect(url_for("index"))
         except Exception as exc:
             auth_log(f"login_error type={type(exc).__name__} detail={exc}")
             error = "Login failed due to a server error. Please try again."
 
-    return render_template(
-        "login.html",
-        accuracy=metrics.get("accuracy", 0),
-        active_page="login",
+    return _auth_page(
+        auth_mode="login",
         error=error,
         success=success,
-        auth_mode="login",
-        show_resend=show_resend,
         form_username=form_username,
-        verify_token=verify_token,
-    )
-
-
-@app.route("/resend-verification", methods=["POST"])
-def resend_verification():
-    """Resend the email verification link for an unverified account."""
-    metrics = _load_metrics()
-
-    if current_user.is_authenticated:
-        return redirect(url_for("index"))
-
-    username = request.form.get("username", "").strip()
-    password = request.form.get("password", "")
-    auth_log(f"resend_start username={username!r}")
-
-    user = User.query.filter_by(username=username).first()
-    if user is None or not check_password_hash(user.password, password):
-        return render_template(
-            "login.html",
-            accuracy=metrics.get("accuracy", 0),
-            active_page="login",
-            error="Invalid username or password.",
-            success=None,
-            auth_mode="login",
-            show_resend=False,
-            form_username=username,
-            verify_token=None,
-        )
-
-    if user.is_verified:
-        return redirect(
-            url_for(
-                "login",
-                success="This account is already verified. You can log in.",
-            )
-        )
-
-    verify_token, _path = build_verification_path(user)
-    session["pending_verify_token"] = verify_token
-
-    if not mail_configured():
-        return render_template(
-            "login.html",
-            accuracy=metrics.get("accuracy", 0),
-            active_page="login",
-            error="Email is not configured. Check MAIL settings in .env.",
-            success=None,
-            auth_mode="login",
-            show_resend=True,
-            form_username=username,
-            verify_token=verify_token,
-        )
-
-    # Build absolute URL in this request, then queue SMTP off-thread.
-    verify_url = build_verification_url(user, token=verify_token)
-    queue_verification_email(app, user.id, verify_url=verify_url)
-    auth_log(f"resend_queued user_id={user.id}")
-    return redirect(
-        url_for(
-            "login",
-            success=(
-                f"Verification email queued for {user.email}. "
-                "If it does not arrive, click Verify in this browser below."
-            ),
-        )
     )
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    metrics = _load_metrics()
-
     if current_user.is_authenticated:
         return redirect(url_for("index"))
 
+    if request.method == "GET":
+        return _auth_page(auth_mode="register")
+
+    username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+    confirm = request.form.get("confirm_password", "")
+    auth_log(f"register_start username={username!r} email={email!r}")
+
     error = None
+    if not username or not email or not password or not confirm:
+        error = "Please fill in all fields."
+    elif len(password) < 6:
+        error = "Password must be at least 6 characters."
+    elif password != confirm:
+        error = "Passwords do not match."
+    elif User.query.filter_by(username=username).first():
+        error = "That username is already taken."
+    elif User.query.filter_by(email=email).first():
+        error = "That email is already registered."
+    elif not mail_configured():
+        error = (
+            "Email is not configured yet. On Render free tier add RESEND_API_KEY. "
+            "Locally you can use MAIL_USERNAME and MAIL_PASSWORD."
+        )
+    else:
+        user = User(
+            username=username,
+            email=email,
+            password=generate_password_hash(password),
+            is_verified=False,
+        )
+        db.session.add(user)
+        db.session.commit()
+        session["pending_user_id"] = user.id
+        _issue_and_queue_otp(user, force=True)
+        auth_log(f"register_ok user_id={user.id} otp_queued=1")
+        return _auth_page(
+            auth_mode="otp",
+            success="Account created. Check your email for a 6-digit code.",
+            masked_email=mask_email(user.email),
+            resend_cooldown=OTP_RESEND_COOLDOWN_SECONDS,
+        )
 
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        auth_log(f"register_start username={username!r} email={email!r}")
+    return _auth_page(auth_mode="register", error=error, form_username=username)
 
-        if not username or not email or not password:
-            error = "Please fill in username, email, and password."
-        elif len(password) < 6:
-            error = "Password must be at least 6 characters."
-        elif User.query.filter_by(username=username).first():
-            error = "That username is already taken."
-        elif User.query.filter_by(email=email).first():
-            error = "That email is already registered."
-        else:
-            if not mail_configured():
-                error = (
-                    "Email is not configured yet. On Render free tier, Gmail SMTP "
-                    "is blocked — add RESEND_API_KEY (HTTPS). Locally you can use "
-                    "MAIL_USERNAME and MAIL_PASSWORD instead."
-                )
-            else:
-                user = User(
-                    username=username,
-                    email=email,
-                    password=generate_password_hash(password),
-                    is_verified=False,
-                )
-                db.session.add(user)
-                db.session.commit()
-                verify_token, _path = build_verification_path(user)
-                session["pending_verify_token"] = verify_token
-                # Build absolute URL while request context exists; SMTP runs async.
-                verify_url = build_verification_url(user, token=verify_token)
-                queue_verification_email(app, user.id, verify_url=verify_url)
-                auth_log(f"register_ok user_id={user.id} mail_queued=1")
-                return redirect(
-                    url_for(
-                        "login",
-                        success=(
-                            "Account created. Click Verify in this browser below "
-                            "(recommended), or wait for the email if it arrives."
-                        ),
-                    )
-                )
 
-    return render_template(
-        "login.html",
-        accuracy=metrics.get("accuracy", 0),
-        active_page="login",
-        error=error,
-        success=None,
-        auth_mode="register",
-        verify_token=session.get("pending_verify_token"),
+@app.route("/verify-otp", methods=["POST"])
+def verify_otp():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    pending_id = session.get("pending_user_id")
+    code = request.form.get("otp_code", "").strip()
+    auth_log(f"otp_verify_start pending_user_id={pending_id!r}")
+
+    if not pending_id:
+        return _auth_page(
+            auth_mode="login",
+            error="Your verification session expired. Please sign in again.",
+        )
+
+    user = db.session.get(User, int(pending_id))
+    if user is None:
+        session.pop("pending_user_id", None)
+        return _auth_page(
+            auth_mode="login",
+            error="Account not found. Please register again.",
+        )
+
+    if user.is_verified:
+        clear_user_otp(user)
+        db.session.commit()
+        login_user(user)
+        session.pop("pending_user_id", None)
+        return redirect(url_for("index"))
+
+    if not verify_user_otp(user, code):
+        auth_log(f"otp_verify_fail user_id={user.id}")
+        return _auth_page(
+            auth_mode="otp",
+            error="Invalid or expired code. Try again or resend a new code.",
+            masked_email=mask_email(user.email),
+            resend_cooldown=resend_cooldown_remaining(user),
+        )
+
+    user.is_verified = True
+    clear_user_otp(user)
+    db.session.commit()
+    login_user(user)
+    session.pop("pending_user_id", None)
+    auth_log(f"otp_verify_ok user_id={user.id}")
+    return redirect(url_for("index"))
+
+
+@app.route("/resend-otp", methods=["POST"])
+def resend_otp():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    pending_id = session.get("pending_user_id")
+    auth_log(f"otp_resend_start pending_user_id={pending_id!r}")
+
+    if not pending_id:
+        return _auth_page(
+            auth_mode="login",
+            error="Your verification session expired. Please sign in again.",
+        )
+
+    user = db.session.get(User, int(pending_id))
+    if user is None:
+        session.pop("pending_user_id", None)
+        return _auth_page(auth_mode="login", error="Account not found.")
+
+    if user.is_verified:
+        return redirect(url_for("login", success="This account is already verified."))
+
+    if not mail_configured():
+        return _auth_page(
+            auth_mode="otp",
+            error="Email is not configured. Add RESEND_API_KEY on Render.",
+            masked_email=mask_email(user.email),
+            resend_cooldown=resend_cooldown_remaining(user),
+        )
+
+    remaining = resend_cooldown_remaining(user)
+    if remaining > 0:
+        return _auth_page(
+            auth_mode="otp",
+            error=f"Please wait {remaining}s before requesting another code.",
+            masked_email=mask_email(user.email),
+            resend_cooldown=remaining,
+        )
+
+    _issue_and_queue_otp(user, force=True)
+    return _auth_page(
+        auth_mode="otp",
+        success="A new verification code was sent.",
+        masked_email=mask_email(user.email),
+        resend_cooldown=OTP_RESEND_COOLDOWN_SECONDS,
     )
 
 
 @app.route("/verify/<token>")
 def verify_email(token):
-    metrics = _load_metrics()
-    auth_log("verify_start")
-    try:
-        email = confirm_verification_token(token)
-        if not email:
-            auth_log("verify_fail reason=bad_or_expired_token")
-            return render_template(
-                "login.html",
-                accuracy=metrics.get("accuracy", 0),
-                active_page="login",
-                error="This verification link is invalid or has expired.",
-                success=None,
-                auth_mode="login",
-                verify_token=None,
-            )
-
-        user = User.query.filter_by(email=email).first()
-        if user is None:
-            auth_log(f"verify_fail reason=no_user email={email!r}")
-            return render_template(
-                "login.html",
-                accuracy=metrics.get("accuracy", 0),
-                active_page="login",
-                error="No account was found for this verification link.",
-                success=None,
-                auth_mode="login",
-                verify_token=None,
-            )
-
-        if not user.is_verified:
-            user.is_verified = True
-            db.session.commit()
-            auth_log(f"verify_ok user_id={user.id} newly_verified=1")
-        else:
-            auth_log(f"verify_ok user_id={user.id} already_verified=1")
-
-        session.pop("pending_verify_token", None)
-        return redirect(
-            url_for(
-                "login",
-                success="Your email has been verified. You can log in now.",
-            )
+    """Legacy link-based verify — OTP replaced this flow."""
+    return redirect(
+        url_for(
+            "login",
+            success=(
+                "Email links are no longer used. Sign in and enter the 6-digit "
+                "code from your email instead."
+            ),
         )
-    except Exception as exc:
-        auth_log(f"verify_error type={type(exc).__name__} detail={exc}")
-        return render_template(
-            "login.html",
-            accuracy=metrics.get("accuracy", 0),
-            active_page="login",
-            error="Verification failed due to a server error. Please try again.",
-            success=None,
-            auth_mode="login",
-            verify_token=None,
-        )
+    )
 
 
 @app.route("/logout")

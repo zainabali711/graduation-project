@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body class="circuit-bg">
+<body class="{% block body_class %}circuit-bg{% endblock %}">
   <button
     type="button"
     id="navToggle"

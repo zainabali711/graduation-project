@@ -17,6 +17,10 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(255), nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # Email OTP verification (hashed 6-digit code)
+    otp_hash = db.Column(db.String(255), nullable=True)
+    otp_expires_at = db.Column(db.DateTime, nullable=True)
+    otp_last_sent_at = db.Column(db.DateTime, nullable=True)
 
     url_scans = db.relationship("UrlScan", back_populates="user", lazy=True)
     domain_scans = db.relationship("DomainScan", back_populates="user", lazy=True)

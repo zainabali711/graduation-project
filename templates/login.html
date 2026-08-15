@@ -1,79 +1,267 @@
 {% extends "base.html" %}
 
-{% block title %}Login — CyberScan{% endblock %}
+{% block title %}Sign In — CyberScan{% endblock %}
+
+{% block body_class %}circuit-bg auth-layout{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth-elite.css') }}">
+{% endblock %}
 
 {% block content %}
-<main class="auth-page">
-  <section class="card auth-card">
-    {% set mode = auth_mode if auth_mode is defined else 'login' %}
-    <div class="auth-toggle" role="tablist">
-      <button type="button" class="{% if mode != 'register' %}active{% endif %}" data-auth-tab="login">Login</button>
-      <button type="button" class="{% if mode == 'register' %}active{% endif %}" data-auth-tab="register">Register</button>
-    </div>
-
-    {% if error %}
-    <div class="alert-error" role="alert">{{ error }}</div>
-    {% endif %}
-    {% if success %}
-    <div class="alert-success" role="alert">{{ success }}</div>
-    {% endif %}
-    {% if verify_token %}
-    <div class="auth-verify-box" role="status">
-      <p>Verify on this site (same browser — no email needed):</p>
-      <a class="btn-teal auth-verify-link" href="{{ url_for('verify_email', token=verify_token) }}">Verify email in this browser</a>
-    </div>
-    {% endif %}
-
-    <form id="loginForm" class="auth-form {% if mode != 'register' %}active{% endif %}" action="/login" method="POST" data-auth-form="login" {% if mode == 'register' %}hidden{% endif %}>
-      <div class="form-field">
-        <label for="loginUser">Username</label>
-        <input id="loginUser" name="username" type="text" placeholder="Enter username" autocomplete="username" value="{{ form_username|default('', true) }}" required>
-      </div>
-      <div class="form-field">
-        <label for="loginPass">Password</label>
-        <div class="password-wrap">
-          <input id="loginPass" name="password" type="password" placeholder="Enter password" autocomplete="current-password" required>
-          <button type="button" class="password-toggle" data-password-target="loginPass" aria-label="Show password">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
+{% set mode = auth_mode if auth_mode is defined else 'login' %}
+<main class="auth-elite">
+  <section class="auth-elite-brand" aria-label="CyberScan branding">
+    <div class="auth-elite-visual" aria-hidden="true">
+      <div class="elite-radar">
+        <div class="elite-radar-glow"></div>
+        <div class="elite-radar-ticks"></div>
+        <div class="elite-radar-ring"></div>
+        <div class="elite-radar-ring elite-radar-ring--mid"></div>
+        <div class="elite-radar-ring elite-radar-ring--inner"></div>
+        <div class="elite-radar-sweep"></div>
+        <div class="elite-radar-shield">
+          <svg viewBox="0 0 48 56" fill="none">
+            <path
+              fill="rgba(139, 26, 61, 0.14)"
+              stroke="#8B1A3D"
+              stroke-width="2.2"
+              stroke-linejoin="round"
+              d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
+            />
+          </svg>
         </div>
       </div>
-      <button type="submit" class="btn-teal">Login</button>
-      <button
-        type="submit"
-        class="btn-ghost auth-resend-btn{% if show_resend %} auth-resend-btn--urgent{% endif %}"
-        formaction="/resend-verification"
-        formmethod="POST"
-      >Resend verification email</button>
-      <p class="auth-resend-hint">Didn’t get the email? Enter your password above, then click Resend. Check spam too.</p>
-    </form>
+    </div>
+    <div class="auth-elite-copy">
+      <h1 class="auth-elite-brand-name">CyberScan <span>Elite</span></h1>
+      <p class="auth-elite-lead">
+        Scan suspicious links and inspect domains with ML + VirusTotal — clear results, no noise.
+      </p>
+      <div class="auth-elite-chips">
+        <span class="auth-elite-chip">Hybrid ML</span>
+        <span class="auth-elite-chip">VirusTotal</span>
+        <span class="auth-elite-chip">Domain Intel</span>
+      </div>
+    </div>
+  </section>
 
-    <form id="registerForm" class="auth-form {% if mode == 'register' %}active{% endif %}" action="/register" method="POST" data-auth-form="register" {% if mode != 'register' %}hidden{% endif %}>
-      <div class="form-field">
-        <label for="regUser">Username</label>
-        <input id="regUser" name="username" type="text" placeholder="Choose a username" autocomplete="username" required>
+  <section class="auth-elite-panel">
+    <div class="auth-elite-card">
+      {% if mode != 'otp' %}
+      <div class="auth-elite-tabs" role="tablist">
+        <button type="button" class="{% if mode != 'register' %}active{% endif %}" data-auth-tab="login" role="tab">Sign In</button>
+        <button type="button" class="{% if mode == 'register' %}active{% endif %}" data-auth-tab="register" role="tab">Create Account</button>
       </div>
-      <div class="form-field">
-        <label for="regEmail">Email</label>
-        <input id="regEmail" name="email" type="email" placeholder="Enter email" autocomplete="email" required>
+      {% endif %}
+
+      {% if error %}
+      <div class="alert-error" role="alert">{{ error }}</div>
+      {% endif %}
+      {% if success %}
+      <div class="alert-success" role="alert">{{ success }}</div>
+      {% endif %}
+
+      {# ----- Sign In ----- #}
+      <div class="auth-elite-panel-block" data-auth-panel="login" {% if mode == 'register' or mode == 'otp' %}hidden{% endif %}>
+        <h2>Welcome back</h2>
+        <p class="auth-sub">Sign in with your username to continue scanning.</p>
+        <form action="{{ url_for('login') }}" method="POST" autocomplete="on">
+          <div class="form-field">
+            <label for="loginUser">Username</label>
+            <input id="loginUser" name="username" type="text" placeholder="Enter username" autocomplete="username" value="{{ form_username|default('', true) }}" required>
+          </div>
+          <div class="form-field">
+            <label for="loginPass">Password</label>
+            <div class="password-wrap">
+              <input id="loginPass" name="password" type="password" placeholder="Enter password" autocomplete="current-password" required>
+              <button type="button" class="password-toggle" data-password-target="loginPass" aria-label="Show password">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="auth-elite-submit">Sign In</button>
+        </form>
+        <p class="auth-elite-switch">
+          Don't have an account?
+          <button type="button" data-auth-tab="register">Register</button>
+        </p>
       </div>
-      <div class="form-field">
-        <label for="regPass">Password</label>
-        <div class="password-wrap">
-          <input id="regPass" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required minlength="6">
-          <button type="button" class="password-toggle" data-password-target="regPass" aria-label="Show password">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
+
+      {# ----- Create Account ----- #}
+      <div class="auth-elite-panel-block" data-auth-panel="register" {% if mode != 'register' %}hidden{% endif %}>
+        <h2>Create your account</h2>
+        <p class="auth-sub">We'll send a 6-digit code to verify your email.</p>
+        <form id="registerForm" action="{{ url_for('register') }}" method="POST" autocomplete="on">
+          <div class="form-field">
+            <label for="regUser">Username</label>
+            <input id="regUser" name="username" type="text" placeholder="Choose a username" autocomplete="username" required>
+          </div>
+          <div class="form-field">
+            <label for="regEmail">Email</label>
+            <input id="regEmail" name="email" type="email" placeholder="Enter email" autocomplete="email" required>
+          </div>
+          <div class="form-field">
+            <label for="regPass">Create Password</label>
+            <div class="password-wrap">
+              <input id="regPass" name="password" type="password" placeholder="Create a password" autocomplete="new-password" required minlength="6">
+              <button type="button" class="password-toggle" data-password-target="regPass" aria-label="Show password">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="regPassConfirm">Confirm Password</label>
+            <div class="password-wrap">
+              <input id="regPassConfirm" name="confirm_password" type="password" placeholder="Confirm password" autocomplete="new-password" required minlength="6">
+              <button type="button" class="password-toggle" data-password-target="regPassConfirm" aria-label="Show password">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p id="regPassError" class="alert-error" role="alert" hidden>Passwords do not match.</p>
+          <button type="submit" class="auth-elite-submit">Create Account</button>
+        </form>
+        <p class="auth-elite-switch">
+          Already have an account?
+          <button type="button" data-auth-tab="login">Sign In</button>
+        </p>
+      </div>
+
+      {# ----- OTP ----- #}
+      <div class="auth-elite-panel-block" data-auth-panel="otp" {% if mode != 'otp' %}hidden{% endif %}>
+        <h2>Verify your email</h2>
+        <p class="auth-sub">
+          We sent a 6-digit code to
+          <strong>{{ masked_email|default('your email', true) }}</strong>.
+          Enter it below to activate your account.
+        </p>
+        <form action="{{ url_for('verify_otp') }}" method="POST" autocomplete="one-time-code">
+          <div class="form-field">
+            <label for="otpCode">Verification code</label>
+            <input
+              id="otpCode"
+              class="auth-elite-otp-input"
+              name="otp_code"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              placeholder="000000"
+              required
+            >
+          </div>
+          <button type="submit" class="auth-elite-submit">Continue</button>
+        </form>
+        <div class="auth-elite-resend">
+          <form id="resendOtpForm" action="{{ url_for('resend_otp') }}" method="POST">
+            <button type="submit" id="resendOtpBtn" {% if resend_cooldown and resend_cooldown > 0 %}disabled{% endif %}>
+              Resend
+            </button>
+          </form>
+          <p id="resendCountdown" {% if not resend_cooldown or resend_cooldown <= 0 %}hidden{% endif %}>
+            You can resend in <span id="resendSeconds">{{ resend_cooldown|default(0) }}</span>s
+          </p>
         </div>
       </div>
-      <button type="submit" class="btn-teal">Create Account</button>
-    </form>
+    </div>
   </section>
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var tabs = document.querySelectorAll("[data-auth-tab]");
+  var panels = {
+    login: document.querySelector('[data-auth-panel="login"]'),
+    register: document.querySelector('[data-auth-panel="register"]'),
+    otp: document.querySelector('[data-auth-panel="otp"]')
+  };
+  var tabBar = document.querySelector(".auth-elite-tabs");
+
+  function showPanel(mode) {
+    if (mode === "otp") return;
+    Object.keys(panels).forEach(function (key) {
+      if (!panels[key]) return;
+      if (key === "otp") {
+        panels[key].hidden = true;
+        return;
+      }
+      panels[key].hidden = key !== mode;
+    });
+    if (tabBar) tabBar.hidden = false;
+    document.querySelectorAll(".auth-elite-tabs [data-auth-tab]").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-auth-tab") === mode);
+    });
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      showPanel(tab.getAttribute("data-auth-tab"));
+    });
+  });
+
+  var regForm = document.getElementById("registerForm");
+  var regPass = document.getElementById("regPass");
+  var regConfirm = document.getElementById("regPassConfirm");
+  var regErr = document.getElementById("regPassError");
+  if (regForm && regPass && regConfirm) {
+    regForm.addEventListener("submit", function (e) {
+      if (regPass.value !== regConfirm.value) {
+        e.preventDefault();
+        if (regErr) regErr.hidden = false;
+        regConfirm.focus();
+      } else if (regErr) {
+        regErr.hidden = true;
+      }
+    });
+  }
+
+  var otpInput = document.getElementById("otpCode");
+  if (otpInput) {
+    otpInput.addEventListener("input", function () {
+      otpInput.value = otpInput.value.replace(/\D/g, "").slice(0, 6);
+    });
+  }
+
+  var secondsEl = document.getElementById("resendSeconds");
+  var countdownEl = document.getElementById("resendCountdown");
+  var resendBtn = document.getElementById("resendOtpBtn");
+  var remaining = parseInt(secondsEl && secondsEl.textContent ? secondsEl.textContent : "0", 10) || 0;
+
+  function tick() {
+    if (!resendBtn || !countdownEl || !secondsEl) return;
+    if (remaining <= 0) {
+      resendBtn.disabled = false;
+      countdownEl.hidden = true;
+      return;
+    }
+    resendBtn.disabled = true;
+    countdownEl.hidden = false;
+    secondsEl.textContent = String(remaining);
+    remaining -= 1;
+    setTimeout(tick, 1000);
+  }
+
+  if (remaining > 0) tick();
+
+  document.querySelectorAll("[data-password-target]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var input = document.getElementById(btn.getAttribute("data-password-target"));
+      if (!input) return;
+      input.type = input.type === "password" ? "text" : "password";
+    });
+  });
+})();
+</script>
 {% endblock %}

@@ -1,21 +1,22 @@
-"""Email verification helpers for CyberScan auth."""
+"""Email verification helpers for CyberScan auth (OTP via Resend / SMTP)."""
 
 from __future__ import annotations
 
 import logging
 import os
+import secrets
 import smtplib
 import socket
 import ssl
 import sys
 import threading
+from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from urllib.parse import urlparse
 
 import requests
-from flask import current_app, has_request_context, render_template, url_for
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from flask import current_app, render_template
+from werkzeug.security import check_password_hash, generate_password_hash
 
 logger = logging.getLogger("cyberscan.mail")
 if not logger.handlers:
@@ -25,9 +26,11 @@ if not logger.handlers:
     logger.setLevel(logging.INFO)
     logger.propagate = False
 
+OTP_TTL_SECONDS = 10 * 60
+OTP_RESEND_COOLDOWN_SECONDS = 60
+
 
 def _mail_log(msg: str) -> None:
-    # Single stream to avoid triplicate Render log lines.
     line = f"MAIL_DIAG {msg}"
     print(line, file=sys.stderr, flush=True)
     logger.info(line)
@@ -39,79 +42,52 @@ def auth_log(msg: str) -> None:
     logger.info(line)
 
 
-def _serializer() -> URLSafeTimedSerializer:
-    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt="email-verify")
+def generate_otp_code() -> str:
+    """Cryptographically random 6-digit code as a zero-padded string."""
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def generate_verification_token(email: str) -> str:
-    return _serializer().dumps(email)
+def mask_email(email: str) -> str:
+    """Mask like di******@gmail.com for OTP UI copy."""
+    email = (email or "").strip()
+    if "@" not in email:
+        return "******"
+    local, _, domain = email.partition("@")
+    if len(local) <= 2:
+        masked_local = (local[:1] + "******") if local else "******"
+    else:
+        masked_local = local[:2] + "******"
+    return f"{masked_local}@{domain}"
 
 
-def confirm_verification_token(token: str, max_age_seconds: int = 60 * 60 * 24) -> str | None:
-    """Return email if token is valid, otherwise None."""
-    try:
-        return _serializer().loads(token, max_age=max_age_seconds)
-    except (BadSignature, SignatureExpired):
-        return None
+def assign_user_otp(user, code: str) -> None:
+    """Store hashed OTP + expiry timestamps on the user row."""
+    user.otp_hash = generate_password_hash(code)
+    user.otp_expires_at = datetime.utcnow() + timedelta(seconds=OTP_TTL_SECONDS)
+    user.otp_last_sent_at = datetime.utcnow()
 
 
-def _is_unreachable_public_base(base: str) -> bool:
-    """True for localhost/LAN bases that phones/other devices cannot open."""
-    host = (urlparse(base).hostname or "").lower()
-    if not host or host in {"localhost", "127.0.0.1", "::1"}:
-        return True
-    if host.startswith("192.168.") or host.startswith("10."):
-        return True
-    if host.startswith("172."):
-        try:
-            second = int(host.split(".")[1])
-            if 16 <= second <= 31:
-                return True
-        except (IndexError, ValueError):
-            pass
-    return False
+def clear_user_otp(user) -> None:
+    user.otp_hash = None
+    user.otp_expires_at = None
 
 
-def build_verification_path(user) -> tuple[str, str]:
-    """Return (token, same-origin path) for in-browser verify — never a cross-host URL."""
-    token = generate_verification_token(user.email)
-    path = url_for("verify_email", token=token)
-    return token, path
+def verify_user_otp(user, code: str) -> bool:
+    code = (code or "").strip()
+    if not code or not user.otp_hash or not user.otp_expires_at:
+        return False
+    if datetime.utcnow() > user.otp_expires_at:
+        return False
+    return check_password_hash(user.otp_hash, code)
 
 
-def build_verification_url(user, token: str | None = None) -> str:
-    """
-    Absolute verify URL for emails.
-
-    Prefer APP_BASE_URL when it is a public URL. Never fall back to a LAN/private
-    IP (that makes the in-browser button hang on phones). Inside a request, use
-    the current public host via url_for(_external=True) + ProxyFix.
-
-    Pass token= to reuse the same token as the in-browser verify button.
-    Must be called from an active request (or with APP_BASE_URL set) — do not
-    call this from a background thread.
-    """
-    token = token or generate_verification_token(user.email)
-    path = url_for("verify_email", token=token)
-    base = (
-        os.environ.get("APP_BASE_URL")
-        or current_app.config.get("APP_BASE_URL")
-        or ""
-    ).strip().rstrip("/")
-
-    if base and _is_unreachable_public_base(base):
-        _mail_log(f"ignore_bad_app_base_url base={base!r}")
-        base = ""
-
-    if base:
-        return f"{base}{path}"
-
-    if has_request_context():
-        return url_for("verify_email", token=token, _external=True)
-
-    raise RuntimeError(
-        "Cannot build verification URL without a request context or APP_BASE_URL"
-    )
+def resend_cooldown_remaining(user) -> int:
+    """Seconds until another OTP may be sent (0 = allowed now)."""
+    if not user.otp_last_sent_at:
+        return 0
+    elapsed = (datetime.utcnow() - user.otp_last_sent_at).total_seconds()
+    remaining = OTP_RESEND_COOLDOWN_SECONDS - elapsed
+    return max(0, int(remaining))
 
 
 def _resend_api_key() -> str:
@@ -138,7 +114,6 @@ def _mail_sender() -> str:
         or os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
         or os.environ.get("MAIL_USERNAME", "").strip()
     )
-    # Resend sandbox sender works without a custom domain.
     return sender or "CyberScan <onboarding@resend.dev>"
 
 
@@ -150,7 +125,6 @@ def _send_via_resend(
     html_body: str,
     timeout: int,
 ) -> None:
-    """Send mail over HTTPS (port 443) — works on Render free tier where SMTP is blocked."""
     api_key = _resend_api_key()
     sender = _mail_sender()
     _mail_log(f"send_start transport=resend to={to_email!r} from={sender!r}")
@@ -204,8 +178,6 @@ def _send_via_smtp(
     )
 
     try:
-        # Prefer IPv4 resolution — Gmail AAAA can yield Errno 101 on hosts without IPv6 egress.
-        # Note: Render *free* still blocks SMTP ports entirely; use RESEND_API_KEY there.
         infos = socket.getaddrinfo(server, port, socket.AF_INET, socket.SOCK_STREAM)
         if not infos:
             raise OSError(f"No IPv4 address for {server}:{port}")
@@ -231,29 +203,20 @@ def _send_via_smtp(
         raise
 
 
-def send_verification_email(mail, user, verify_url: str | None = None) -> str:
-    """
-    Send a verification email with a signed token link.
-
-    On Render free tier, Gmail SMTP is blocked (Errno 101 / unreachable). Prefer
-    Resend HTTPS when RESEND_API_KEY is set; fall back to SMTP for local/dev.
-    """
-    if not verify_url:
-        verify_url = build_verification_url(user)
-
-    subject = "Verify your CyberScan account"
+def send_otp_email(user, code: str) -> None:
+    """Send a 6-digit OTP email (Resend HTTPS preferred)."""
+    subject = "Your CyberScan verification code"
     text_body = (
         f"Hello {user.username},\n\n"
-        "Thank you for registering with CyberScan.\n"
-        "Please verify your email by opening this link:\n\n"
-        f"{verify_url}\n\n"
-        "This link expires in 24 hours.\n\n"
+        "Your CyberScan verification code is:\n\n"
+        f"  {code}\n\n"
+        "This code expires in 10 minutes.\n"
         "If you did not create this account, you can ignore this email.\n"
     )
     html_body = render_template(
-        "email/verify.html",
+        "email/otp.html",
         username=user.username,
-        verify_url=verify_url,
+        code=code,
     )
 
     timeout = int(current_app.config.get("MAIL_TIMEOUT", 15))
@@ -265,7 +228,7 @@ def send_verification_email(mail, user, verify_url: str | None = None) -> str:
             html_body=html_body,
             timeout=max(timeout, 15),
         )
-        return verify_url
+        return
 
     smtp_sender = (
         (current_app.config.get("MAIL_DEFAULT_SENDER") or "").strip()
@@ -280,17 +243,10 @@ def send_verification_email(mail, user, verify_url: str | None = None) -> str:
         text_body=text_body,
         html_body=html_body,
     )
-    return verify_url
 
 
-def queue_verification_email(app, user_id: int, verify_url: str) -> None:
-    """
-    Send verification email on a daemon thread so the HTTP worker is never blocked.
-
-    verify_url must be built in the active request before calling this.
-    """
-    if not verify_url:
-        raise ValueError("verify_url is required for background email send")
+def queue_otp_email(app, user_id: int, code: str) -> None:
+    """Send OTP on a daemon thread. Pass plaintext code built before starting."""
 
     def _worker() -> None:
         with app.app_context():
@@ -301,7 +257,7 @@ def queue_verification_email(app, user_id: int, verify_url: str) -> None:
                 _mail_log(f"async_skip missing_user_id={user_id}")
                 return
             try:
-                send_verification_email(None, user, verify_url=verify_url)
+                send_otp_email(user, code)
             except Exception as exc:
                 _mail_log(
                     f"async_fail user_id={user_id} type={type(exc).__name__} detail={exc}"
@@ -309,11 +265,11 @@ def queue_verification_email(app, user_id: int, verify_url: str) -> None:
 
     thread = threading.Thread(
         target=_worker,
-        name=f"verify-mail-{user_id}",
+        name=f"otp-mail-{user_id}",
         daemon=True,
     )
     thread.start()
-    _mail_log(f"async_queued user_id={user_id}")
+    _mail_log(f"async_queued user_id={user_id} kind=otp")
 
 
 def mail_configured() -> bool:
