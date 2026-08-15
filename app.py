@@ -124,6 +124,23 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
+@app.before_request
+def _reject_unverified_sessions():
+    """Never treat an unverified account as logged-in."""
+    if not current_user.is_authenticated:
+        return None
+    # Admin blueprint uses a separate session; skip those paths.
+    if request.endpoint and str(request.endpoint).startswith("admin."):
+        return None
+    if bool(getattr(current_user, "is_verified", False)):
+        return None
+    auth_log(f"unverified_session_cleared user_id={getattr(current_user, 'id', None)}")
+    logout_user()
+    session.pop("welcome_message", None)
+    # Keep pending OTP session if present so they can finish verify.
+    return None
+
+
 def _ensure_user_otp_columns() -> None:
     """Add OTP columns on existing Postgres/SQLite DBs (create_all won't alter)."""
     from sqlalchemy import inspect, text
@@ -542,11 +559,15 @@ def login():
                     resend_cooldown=OTP_RESEND_COOLDOWN_SECONDS,
                 )
             else:
-                login_user(user)
-                session.pop("pending_user_id", None)
-                session["welcome_message"] = f"Welcome back, {user.username}!"
-                auth_log(f"login_ok user_id={user.id}")
-                return redirect(url_for("index"))
+                # Verified accounts only — never login_user for unverified users.
+                if not login_user(user):
+                    auth_log(f"login_rejected_inactive user_id={user.id}")
+                    error = "Please verify your email before signing in."
+                else:
+                    session.pop("pending_user_id", None)
+                    session["welcome_message"] = f"Welcome back, {user.username}!"
+                    auth_log(f"login_ok user_id={user.id}")
+                    return redirect(url_for("index"))
         except Exception as exc:
             auth_log(f"login_error type={type(exc).__name__} detail={exc}")
             error = "Login failed due to a server error. Please try again."
@@ -598,10 +619,25 @@ def register():
             is_verified=False,
         )
         db.session.add(user)
+        db.session.flush()
+        # Hard guarantee: registration must never mark the account verified.
+        user.is_verified = False
         db.session.commit()
+        db.session.refresh(user)
+        if user.is_verified:
+            auth_log(f"register_verified_anomaly user_id={user.id} forcing_false")
+            user.is_verified = False
+            db.session.commit()
         session["pending_user_id"] = user.id
         _issue_and_queue_otp(user, force=True)
-        auth_log(f"register_ok user_id={user.id} otp_queued=1")
+        # Re-assert after OTP issue/commit — OTP helpers must not flip verified.
+        if user.is_verified:
+            auth_log(f"otp_issue_verified_anomaly user_id={user.id} forcing_false")
+            user.is_verified = False
+            db.session.commit()
+        auth_log(
+            f"register_ok user_id={user.id} otp_queued=1 is_verified={user.is_verified}"
+        )
         return _auth_page(
             auth_mode="otp",
             success="Account created. Check your email for a 6-digit code.",
@@ -635,6 +671,7 @@ def verify_otp():
             error="Account not found. Please register again.",
         )
 
+    # Already verified earlier — do not re-run OTP; treat as returning login.
     if user.is_verified:
         clear_user_otp(user)
         db.session.commit()
@@ -643,6 +680,7 @@ def verify_otp():
         session["welcome_message"] = f"Welcome back, {user.username}!"
         return redirect(url_for("index"))
 
+    # ONLY place a new account may become verified: correct, non-expired OTP.
     if not verify_user_otp(user, code):
         auth_log(f"otp_verify_fail user_id={user.id}")
         return _auth_page(
@@ -655,10 +693,16 @@ def verify_otp():
     user.is_verified = True
     clear_user_otp(user)
     db.session.commit()
-    login_user(user)
+    # login_user respects User.is_active (== is_verified)
+    if not login_user(user):
+        auth_log(f"otp_verify_login_rejected user_id={user.id}")
+        return _auth_page(
+            auth_mode="login",
+            error="Verification saved but sign-in failed. Please sign in.",
+        )
     session.pop("pending_user_id", None)
     session["welcome_message"] = f"Welcome, {user.username}!"
-    auth_log(f"otp_verify_ok user_id={user.id}")
+    auth_log(f"otp_verify_ok user_id={user.id} is_verified={user.is_verified}")
     return redirect(url_for("index"))
 
 

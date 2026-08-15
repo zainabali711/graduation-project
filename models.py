@@ -15,7 +15,12 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password = db.Column(db.String(255), nullable=False)
-    is_verified = db.Column(db.Boolean, default=False, nullable=False)
+    is_verified = db.Column(
+        db.Boolean,
+        default=False,
+        server_default=db.false(),
+        nullable=False,
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     # Email OTP verification (hashed 6-digit code)
     otp_hash = db.Column(db.String(255), nullable=True)
@@ -24,6 +29,11 @@ class User(UserMixin, db.Model):
 
     url_scans = db.relationship("UrlScan", back_populates="user", lazy=True)
     domain_scans = db.relationship("DomainScan", back_populates="user", lazy=True)
+
+    @property
+    def is_active(self) -> bool:
+        """Flask-Login: block sessions until email OTP succeeds."""
+        return bool(self.is_verified)
 
     def __repr__(self) -> str:
         return f"<User {self.username}>"

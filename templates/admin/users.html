@@ -25,9 +25,9 @@
           <td class="mono">{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '—' }}</td>
           <td>
             {% if user.is_verified %}
-            <span class="admin-badge admin-badge-yes">Yes</span>
+            <span class="admin-badge admin-badge-yes">Verified</span>
             {% else %}
-            <span class="admin-badge admin-badge-no">No</span>
+            <span class="admin-badge admin-badge-no">Not Verified</span>
             {% endif %}
           </td>
           <td>

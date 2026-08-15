@@ -77,8 +77,13 @@ def clear_user_otp(user) -> None:
 
 
 def verify_user_otp(user, code: str) -> bool:
+    """Return True only for a non-expired 6-digit code matching otp_hash."""
     code = (code or "").strip()
-    if not code or not user.otp_hash or not user.otp_expires_at:
+    if not code.isdigit() or len(code) != 6:
+        return False
+    if not user.otp_hash or not user.otp_expires_at:
+        return False
+    if bool(getattr(user, "is_verified", False)):
         return False
     if datetime.utcnow() > user.otp_expires_at:
         return False
