@@ -683,7 +683,7 @@ def resend_otp():
     if not mail_configured():
         return _auth_page(
             auth_mode="otp",
-            error="Email is not configured. Add RESEND_API_KEY on Render.",
+            error="Email is not configured. Add BREVO_API_KEY on Render.",
             masked_email=mask_email(user.email),
             resend_cooldown=resend_cooldown_remaining(user),
         )
