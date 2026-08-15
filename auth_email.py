@@ -78,15 +78,19 @@ def build_verification_path(user) -> tuple[str, str]:
     return token, path
 
 
-def build_verification_url(user) -> str:
+def build_verification_url(user, token: str | None = None) -> str:
     """
     Absolute verify URL for emails.
 
     Prefer APP_BASE_URL when it is a public URL. Never fall back to a LAN/private
     IP (that makes the in-browser button hang on phones). Inside a request, use
     the current public host via url_for(_external=True) + ProxyFix.
+
+    Pass token= to reuse the same token as the in-browser verify button.
+    Must be called from an active request (or with APP_BASE_URL set) — do not
+    call this from a background thread.
     """
-    token = generate_verification_token(user.email)
+    token = token or generate_verification_token(user.email)
     path = url_for("verify_email", token=token)
     base = (
         os.environ.get("APP_BASE_URL")
@@ -105,18 +109,25 @@ def build_verification_url(user) -> str:
         # Uses the Host / X-Forwarded-* headers (ProxyFix on Render).
         return url_for("verify_email", token=token, _external=True)
 
-    return path
+    raise RuntimeError(
+        "Cannot build verification URL without a request context or APP_BASE_URL"
+    )
 
 
-def send_verification_email(mail, user) -> str:
+def send_verification_email(mail, user, verify_url: str | None = None) -> str:
     """
     Send a verification email with a signed token link.
 
     Uses smtplib directly with an explicit timeout so Render workers do not hang
     forever when Gmail SMTP is slow/blocked. Flask-Mail has no reliable timeout.
-    Returns the absolute verify URL used in the email.
+
+    Prefer passing verify_url built inside the HTTP request (see
+    queue_verification_email). Building it here requires a request context or
+    APP_BASE_URL.
     """
-    verify_url = build_verification_url(user)
+    if not verify_url:
+        verify_url = build_verification_url(user)
+
     sender = (
         current_app.config.get("MAIL_DEFAULT_SENDER")
         or current_app.config.get("MAIL_USERNAME")
@@ -172,11 +183,16 @@ def send_verification_email(mail, user) -> str:
     return verify_url
 
 
-def queue_verification_email(app, user_id: int) -> None:
+def queue_verification_email(app, user_id: int, verify_url: str) -> None:
     """
     Send verification email on a daemon thread so the HTTP worker is never blocked
     by SMTP (even for the MAIL_TIMEOUT window).
+
+    verify_url must be built in the active request before calling this — url_for
+    cannot run safely on a background thread without SERVER_NAME.
     """
+    if not verify_url:
+        raise ValueError("verify_url is required for background email send")
 
     def _worker() -> None:
         with app.app_context():
@@ -187,7 +203,7 @@ def queue_verification_email(app, user_id: int) -> None:
                 _mail_log(f"async_skip missing_user_id={user_id}")
                 return
             try:
-                send_verification_email(None, user)
+                send_verification_email(None, user, verify_url=verify_url)
             except Exception as exc:
                 _mail_log(
                     f"async_fail user_id={user_id} type={type(exc).__name__} detail={exc}"

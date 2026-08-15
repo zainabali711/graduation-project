@@ -20,6 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from auth_email import (
     auth_log,
     build_verification_path,
+    build_verification_url,
     confirm_verification_token,
     mail_configured,
     queue_verification_email,
@@ -513,8 +514,9 @@ def resend_verification():
             verify_token=verify_token,
         )
 
-    # Never block the HTTP worker on SMTP — queue and return immediately.
-    queue_verification_email(app, user.id)
+    # Build absolute URL in this request, then queue SMTP off-thread.
+    verify_url = build_verification_url(user, token=verify_token)
+    queue_verification_email(app, user.id, verify_url=verify_url)
     auth_log(f"resend_queued user_id={user.id}")
     return redirect(
         url_for(
@@ -567,8 +569,9 @@ def register():
                 db.session.commit()
                 verify_token, _path = build_verification_path(user)
                 session["pending_verify_token"] = verify_token
-                # SMTP in background so registration never hangs the worker.
-                queue_verification_email(app, user.id)
+                # Build absolute URL while request context exists; SMTP runs async.
+                verify_url = build_verification_url(user, token=verify_token)
+                queue_verification_email(app, user.id, verify_url=verify_url)
                 auth_log(f"register_ok user_id={user.id} mail_queued=1")
                 return redirect(
                     url_for(
