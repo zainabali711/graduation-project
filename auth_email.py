@@ -29,6 +29,10 @@ if not logger.handlers:
 OTP_TTL_SECONDS = 10 * 60
 OTP_RESEND_COOLDOWN_SECONDS = 60
 
+# Resend's built-in test sender — no domain verification required.
+# (Only delivers to the email on your Resend account until you verify a domain.)
+RESEND_SANDBOX_FROM = "CyberScan <onboarding@resend.dev>"
+
 
 def _mail_log(msg: str) -> None:
     line = f"MAIL_DIAG {msg}"
@@ -98,23 +102,54 @@ def _resend_api_key() -> str:
     return key or os.environ.get("RESEND_API_KEY", "").strip()
 
 
-def _mail_sender() -> str:
+def _smtp_sender() -> str:
+    """From address for local SMTP only (not used by Resend)."""
     try:
         sender = (
-            current_app.config.get("RESEND_FROM")
-            or current_app.config.get("MAIL_DEFAULT_SENDER")
+            current_app.config.get("MAIL_DEFAULT_SENDER")
             or current_app.config.get("MAIL_USERNAME")
             or ""
         ).strip()
     except RuntimeError:
         sender = ""
-    sender = (
+    return (
         sender
-        or os.environ.get("RESEND_FROM", "").strip()
         or os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
         or os.environ.get("MAIL_USERNAME", "").strip()
+        or "noreply@cyberscan.local"
     )
-    return sender or "CyberScan <onboarding@resend.dev>"
+
+
+def _resend_from() -> str:
+    """
+    From address for Resend HTTPS sends.
+
+    Never fall back to MAIL_USERNAME / Gmail — Resend rejects unverified domains
+    (403). Use onboarding@resend.dev unless RESEND_FROM is explicitly a
+    non-gmail address (e.g. after verifying your own domain).
+    """
+    try:
+        configured = (current_app.config.get("RESEND_FROM") or "").strip()
+    except RuntimeError:
+        configured = ""
+    configured = configured or os.environ.get("RESEND_FROM", "").strip()
+
+    if configured:
+        lower = configured.lower()
+        # Extract bare email if "Name <email>" form
+        if "<" in configured and ">" in configured:
+            bare = configured[configured.rfind("<") + 1 : configured.rfind(">")].strip().lower()
+        else:
+            bare = lower
+        if bare.endswith("@gmail.com") or bare.endswith("@googlemail.com"):
+            _mail_log(
+                f"from_override reason=gmail_unverified configured={configured!r} "
+                f"using={RESEND_SANDBOX_FROM!r}"
+            )
+            return RESEND_SANDBOX_FROM
+        return configured
+
+    return RESEND_SANDBOX_FROM
 
 
 def _send_via_resend(
@@ -126,7 +161,7 @@ def _send_via_resend(
     timeout: int,
 ) -> None:
     api_key = _resend_api_key()
-    sender = _mail_sender()
+    sender = _resend_from()
     _mail_log(f"send_start transport=resend to={to_email!r} from={sender!r}")
     resp = requests.post(
         "https://api.resend.com/emails",
@@ -230,15 +265,9 @@ def send_otp_email(user, code: str) -> None:
         )
         return
 
-    smtp_sender = (
-        (current_app.config.get("MAIL_DEFAULT_SENDER") or "").strip()
-        or (current_app.config.get("MAIL_USERNAME") or "").strip()
-        or os.environ.get("MAIL_DEFAULT_SENDER", "").strip()
-        or os.environ.get("MAIL_USERNAME", "").strip()
-    )
     _send_via_smtp(
         to_email=user.email,
-        sender=smtp_sender,
+        sender=_smtp_sender(),
         subject=subject,
         text_body=text_body,
         html_body=html_body,
