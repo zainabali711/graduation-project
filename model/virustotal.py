@@ -51,14 +51,16 @@ load_dotenv(_BASE / ".env", override=False)
 VT_URL_ENDPOINT = "https://www.virustotal.com/api/v3/urls"
 USER_UNAVAILABLE_MSG = "VirusTotal check unavailable — using ML result only"
 USER_RATE_LIMIT_MSG = (
-    "VirusTotal is busy (free plan: 4 requests/min shared by all users). "
-    "Please wait about 20 seconds and scan again — ML result is shown for now."
+    "VirusTotal quota/rate limit reached (free API). "
+    "Showing the ML result only — try again later or tomorrow when the quota resets."
 )
 API_KEY_ENV_NAME = "VIRUSTOTAL_API_KEY"
 
 # Free public API: 4 requests / minute per key (shared by every user of this app).
 _MAX_REQUESTS_PER_MINUTE = 4
 _MIN_INTERVAL_SEC = 60.0 / _MAX_REQUESTS_PER_MINUTE  # 15s
+# Never block the request worker waiting for a rate slot (avoids Gunicorn 502).
+_MAX_RATE_WAIT_SEC = 3.0
 _CACHE_TTL_SEC = 600.0  # 10 minutes
 _CACHE_MAX_ENTRIES = 256
 
@@ -166,10 +168,12 @@ def _cache_set(url_id: str, payload: dict) -> None:
             _result_cache.popitem(last=False)
 
 
-def _wait_for_rate_slot() -> None:
-    """Block until making one more VT API call stays under 4/min.
+def _wait_for_rate_slot() -> bool:
+    """
+    Reserve a VT API slot under 4/min.
 
-    Sleeps happen OUTSIDE the lock so concurrent requests are not frozen.
+    Returns False (without sleeping long) if the next slot is too far away —
+    caller should skip VT instead of blocking the Gunicorn worker.
     """
     while True:
         wait = 0.0
@@ -185,21 +189,32 @@ def _wait_for_rate_slot() -> None:
                         wait = _MIN_INTERVAL_SEC - since_last
                     else:
                         _request_times.append(now)
-                        return
+                        return True
                 else:
                     _request_times.append(now)
-                    return
+                    return True
             else:
                 wait = 60.0 - (now - _request_times[0]) + 0.05
 
         wait = max(wait, 0.05)
+        if wait > _MAX_RATE_WAIT_SEC:
+            logger.info(
+                "[VirusTotal] rate-slot skip wait=%.1fs (cap=%.1fs)",
+                wait,
+                _MAX_RATE_WAIT_SEC,
+            )
+            return False
         logger.info("[VirusTotal] rate-slot wait=%.1fs", wait)
         time.sleep(wait)
 
 
 def _request(session: requests.Session, method: str, url: str, **kwargs):
-    """Rate-limited request; SSL fallback for broken local trust stores."""
-    _wait_for_rate_slot()
+    """Rate-limited request; SSL fallback for broken local trust stores.
+
+    Returns None when the local rate slot would block too long (skip VT).
+    """
+    if not _wait_for_rate_slot():
+        return None
     verify = kwargs.pop("verify", _ssl_verify_setting())
     try:
         resp = session.request(method, url, verify=verify, timeout=25, **kwargs)
@@ -220,14 +235,9 @@ def _request(session: requests.Session, method: str, url: str, **kwargs):
     return resp
 
 
-def _retry_after_seconds(response: requests.Response, default: float = 20.0) -> float:
-    raw = response.headers.get("Retry-After")
-    if not raw:
-        return default
-    try:
-        return max(float(raw), 1.0)
-    except ValueError:
-        return default
+def _rate_limit_result(detail: str) -> dict:
+    _diag(f"RATE_LIMIT_FAST_FAIL detail={detail}")
+    return _error_result(detail, user_message=USER_RATE_LIMIT_MSG)
 
 
 def check_url(url: str) -> dict:
@@ -257,7 +267,7 @@ def check_url(url: str) -> dict:
     last_exc: Exception | None = None
     last_status: int | None = None
 
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             _diag(f"attempt={attempt + 1} GET report")
             with _make_session() as session:
@@ -267,6 +277,10 @@ def check_url(url: str) -> dict:
                     f"{VT_URL_ENDPOINT}/{url_id}",
                     headers=headers,
                 )
+                if report is None:
+                    return _rate_limit_result(
+                        "Skipped VirusTotal — local rate slot wait too long"
+                    )
                 last_status = report.status_code
 
                 if report.status_code == 401:
@@ -274,14 +288,9 @@ def check_url(url: str) -> dict:
                 if report.status_code == 403:
                     return _error_result("VirusTotal forbidden (HTTP 403)")
                 if report.status_code == 429:
-                    wait = _retry_after_seconds(report)
-                    _diag(f"HTTP 429 — waiting {wait:.1f}s then retry")
-                    if attempt < 2:
-                        time.sleep(wait)
-                        continue
-                    return _error_result(
-                        "VirusTotal rate limit reached (free: 4 requests/min)",
-                        user_message=USER_RATE_LIMIT_MSG,
+                    # Fail fast — sleeping/retrying causes Gunicorn WORKER TIMEOUT → 502.
+                    return _rate_limit_result(
+                        "VirusTotal HTTP 429 QuotaExceeded / rate limit"
                     )
 
                 if report.status_code == 404:
@@ -292,15 +301,14 @@ def check_url(url: str) -> dict:
                         headers=headers,
                         data={"url": url},
                     )
+                    if submit is None:
+                        return _rate_limit_result(
+                            "Skipped VirusTotal submit — local rate slot wait too long"
+                        )
                     last_status = submit.status_code
                     if submit.status_code == 429:
-                        wait = _retry_after_seconds(submit)
-                        if attempt < 2:
-                            time.sleep(wait)
-                            continue
-                        return _error_result(
-                            "VirusTotal rate limit reached (free: 4 requests/min)",
-                            user_message=USER_RATE_LIMIT_MSG,
+                        return _rate_limit_result(
+                            "VirusTotal submit HTTP 429 QuotaExceeded / rate limit"
                         )
                     if submit.status_code >= 400:
                         return _error_result(
@@ -314,15 +322,14 @@ def check_url(url: str) -> dict:
                         f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
                         headers=headers,
                     )
+                    if analysis is None:
+                        return _rate_limit_result(
+                            "Skipped VirusTotal analysis — local rate slot wait too long"
+                        )
                     last_status = analysis.status_code
                     if analysis.status_code == 429:
-                        wait = _retry_after_seconds(analysis)
-                        if attempt < 2:
-                            time.sleep(wait)
-                            continue
-                        return _error_result(
-                            "VirusTotal rate limit reached (free: 4 requests/min)",
-                            user_message=USER_RATE_LIMIT_MSG,
+                        return _rate_limit_result(
+                            "VirusTotal analysis HTTP 429 QuotaExceeded / rate limit"
                         )
                     if analysis.status_code >= 400:
                         return _error_result(
@@ -374,8 +381,8 @@ def check_url(url: str) -> dict:
                 f"EXCEPTION attempt={attempt + 1} "
                 f"type={type(exc).__name__} detail={exc}"
             )
-            if attempt < 2:
-                time.sleep(0.8 * (attempt + 1))
+            if attempt < 1:
+                time.sleep(0.5)
                 continue
         except (KeyError, ValueError, TypeError) as exc:
             _diag(f"PARSE_ERROR type={type(exc).__name__} detail={exc}")
