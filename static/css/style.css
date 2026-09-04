@@ -1368,10 +1368,10 @@ textarea:focus,
 
 .xai-track,
 .conf-track {
-  height: 8px;
+  height: 10px;
   border-radius: var(--radius-pill);
   background: rgba(28, 33, 40, 0.95);
-  border: 1px solid rgba(139, 26, 61, 0.15);
+  border: 1px solid rgba(139, 26, 61, 0.22);
   overflow: hidden;
 }
 
@@ -1388,13 +1388,30 @@ textarea:focus,
 .xai-fill.xai-red,
 .conf-fill.red {
   background: linear-gradient(90deg, #ef4444, #fb7185);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.65);
 }
 
 .xai-fill.xai-green,
 .conf-fill.green {
   background: linear-gradient(90deg, #10B981, #34d399);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.55);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.65);
+}
+
+/* DNS result page — same strong fills; slightly taller tracks for clarity */
+.dns-result-page .conf-track {
+  height: 12px;
+  border: 1px solid rgba(139, 26, 61, 0.28);
+  background: rgba(13, 17, 23, 0.9);
+}
+
+.dns-result-page .conf-fill.red {
+  background: linear-gradient(90deg, #dc2626, #f43f5e, #fb7185);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.75);
+}
+
+.dns-result-page .conf-fill.green {
+  background: linear-gradient(90deg, #059669, #10B981, #2dd4bf);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.75);
 }
 
 .decision-table {

@@ -32,7 +32,7 @@
             <span class="mono">{{ '%.2f'|format(malicious_probability) }}%</span>
           </div>
           <div class="conf-track">
-            <div class="conf-fill red" style="width: {{ malicious_probability }}%"></div>
+            <div class="conf-fill red" data-width="{{ malicious_probability }}"></div>
           </div>
         </div>
         <div class="conf-row">
@@ -41,7 +41,7 @@
             <span class="mono">{{ '%.2f'|format(benign_probability) }}%</span>
           </div>
           <div class="conf-track">
-            <div class="conf-fill teal" style="width: {{ benign_probability }}%"></div>
+            <div class="conf-fill green" data-width="{{ benign_probability }}"></div>
           </div>
         </div>
       </div>
