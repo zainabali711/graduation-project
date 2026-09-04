@@ -215,29 +215,26 @@
   max-width: 52ch;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .home-elite .elite-services {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.15rem;
   align-items: stretch;
 }
 
 .home-elite .elite-services-or {
-  align-self: center;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid rgba(139, 26, 61, 0.4);
-  background: #1C010C;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #e8c4ce;
-  box-shadow: 0 0 18px rgba(139, 26, 61, 0.2);
+  display: none;
 }
 
 .home-elite .elite-svc {
@@ -269,6 +266,12 @@
   --card-accent: #4FD1C5;
   --card-accent-soft: rgba(79, 209, 197, 0.38);
   --card-glow: rgba(79, 209, 197, 0.14);
+}
+
+.home-elite .elite-svc--dns {
+  --card-accent: #7C9CFF;
+  --card-accent-soft: rgba(124, 156, 255, 0.38);
+  --card-glow: rgba(124, 156, 255, 0.16);
 }
 
 .home-elite .elite-svc:hover {
@@ -598,10 +601,6 @@
   .home-elite .elite-services {
     grid-template-columns: 1fr;
     gap: 1rem;
-  }
-
-  .home-elite .elite-services-or {
-    margin: 0.15rem auto;
   }
 
   .home-elite .elite-stats {

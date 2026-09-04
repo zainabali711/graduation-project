@@ -17,7 +17,7 @@
       <p class="elite-lead">
         Scan suspicious links and inspect domains with ML + VirusTotal — clear results, no noise.
       </p>
-      <a class="elite-cta" href="{{ url_for('scan') }}">Start a New Scan</a>
+      <a class="elite-cta" href="#services">Start a New Scan</a>
     </div>
 
     <div class="elite-hero-visual" aria-hidden="true">
@@ -46,7 +46,7 @@
   <section class="elite-section" id="services" aria-labelledby="services-title">
     <div class="elite-section-head">
       <h2 id="services-title">Services</h2>
-      <p>Two tools. Same burgundy workspace. Pick what you need.</p>
+      <p>Three tools. Same burgundy workspace. Pick what you need.</p>
     </div>
 
     <div class="elite-services">
@@ -76,8 +76,6 @@
         </a>
       </article>
 
-      <div class="elite-services-or" aria-hidden="true">OR</div>
-
       <article class="elite-svc elite-svc--domain">
         <div class="elite-svc-top">
           <span class="elite-svc-num">02</span>
@@ -98,6 +96,33 @@
         </ul>
         <a class="elite-svc-cta" href="{{ url_for('domain') }}">
           Inspect Domain
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </a>
+      </article>
+
+      <article class="elite-svc elite-svc--dns">
+        <div class="elite-svc-top">
+          <span class="elite-svc-num">03</span>
+          <span class="elite-svc-cat">DNS Intelligence</span>
+        </div>
+        <div class="elite-svc-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12h3l2-5 3 10 2-5h6"/>
+            <path d="M3 19c2.5-1.5 5.5-2.5 9-2.5S18.5 17.5 21 19"/>
+            <path d="M3 5c2.5 1.5 5.5 2.5 9 2.5S18.5 6.5 21 5"/>
+          </svg>
+        </div>
+        <h3>DNS Query Scanner</h3>
+        <p class="elite-svc-desc">Classifies DNS query names for malicious patterns with a hybrid ML model. Trained on a synthetic dataset — treat results as research signals, not production intel.</p>
+        <ul class="elite-svc-features">
+          <li>Hybrid RF + SVM</li>
+          <li>Offline query-name ML</li>
+          <li>Synthetic-data trained</li>
+        </ul>
+        <a class="elite-svc-cta" href="{{ url_for('dns_scan') }}">
+          Scan DNS Query
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M5 12h14M13 6l6 6-6 6"/>
           </svg>
