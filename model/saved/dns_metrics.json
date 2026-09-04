@@ -1,0 +1,75 @@
+{
+  "module": "dns_query_classifier",
+  "dataset_caveat": "Synthetically generated (Daumel DNS tunneling/exfiltration dataset); may not reflect real-world DNS traffic.",
+  "feature_columns": [
+    "dns_domain_name_length",
+    "dns_subdomain_name_length",
+    "label_count",
+    "tld_length",
+    "sld_length",
+    "numerical_percentage",
+    "character_entropy",
+    "max_continuous_numeric_len",
+    "max_continuous_alphabet_len",
+    "max_continuous_consonants_len",
+    "max_continuous_same_alphabet_len",
+    "vowels_consonant_ratio",
+    "conv_freq_vowels_consonants",
+    "digit_count",
+    "alpha_count",
+    "dot_count",
+    "hyphen_count",
+    "unique_char_ratio"
+  ],
+  "sample_size_cap": 100000,
+  "dataset_size": 100000,
+  "train_samples": 80000,
+  "test_samples": 20000,
+  "accuracy": 0.99905,
+  "precision": 0.9983025461807289,
+  "recall": 0.9998,
+  "f1": 0.9990507119660255,
+  "confusion_matrix": [
+    [
+      9983,
+      17
+    ],
+    [
+      2,
+      9998
+    ]
+  ],
+  "label_mapping": {
+    "Benign": 0,
+    "Malicious": 1
+  },
+  "evaluation_limitations": {
+    "risk_level": "HIGH",
+    "present_99_9_as_unqualified_headline": false,
+    "summary": "Near-perfect in-distribution accuracy is NOT trustworthy as a real-world headline. Length/subdomain features alone nearly separate classes; leave-one-tool-out malicious recall collapses for several tools. The model largely fits synthetic multi-tool query-name artifacts.",
+    "top_rf_features": [
+      {
+        "feature": "dns_domain_name_length",
+        "importance": 0.18810663579996617
+      },
+      {
+        "feature": "dns_subdomain_name_length",
+        "importance": 0.1355531235391492
+      },
+      {
+        "feature": "character_entropy",
+        "importance": 0.10824445590598454
+      },
+      {
+        "feature": "alpha_count",
+        "importance": 0.07514669062560424
+      },
+      {
+        "feature": "max_continuous_consonants_len",
+        "importance": 0.07412483251666277
+      }
+    ],
+    "length_only_baseline_accuracy": 0.9582,
+    "mean_leave_one_tool_out_malicious_recall": 0.30809411402065634
+  }
+}

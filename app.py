@@ -29,10 +29,12 @@ from auth_email import (
     resend_cooldown_remaining,
     verify_user_otp,
 )
+from models import Admin, DnsScan, DomainScan, UrlScan, User, db
+from admin_routes import admin_bp
+from model.dns_examples import get_dns_examples
+from model.predict_dns import predict_dns_query
 from model.domain_lookup import inspect_domain
 from model.predict import predict_url
-from models import Admin, DomainScan, UrlScan, User, db
-from admin_routes import admin_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "url-shield-dev-secret-key")
@@ -228,6 +230,23 @@ def _save_domain_scan(result: dict) -> None:
     db.session.commit()
 
 
+def _save_dns_scan(result: dict) -> None:
+    """Persist a DNS query-name scan to dns_scans."""
+    gen = result.get("generalization") or {}
+    record = DnsScan(
+        user_id=_current_user_id(),
+        query_name=result.get("query_name", ""),
+        result=result.get("result")
+        or ("Malicious" if result.get("label") == "Malicious" else "Safe"),
+        risk_level=result.get("risk_level", "Unknown"),
+        confidence=float(result.get("confidence") or 0),
+        generalization_level=gen.get("level"),
+        scan_date=datetime.utcnow(),
+    )
+    db.session.add(record)
+    db.session.commit()
+
+
 @app.route("/")
 def index():
     metrics = _load_metrics()
@@ -289,6 +308,95 @@ def scan():
         "scan.html",
         accuracy=metrics.get("accuracy", 0),
         active_page="scan",
+    )
+
+
+@app.route("/dns-scan")
+def dns_scan():
+    """DNS query-name classifier (offline ML on synthetic Daumel data)."""
+    metrics = _load_metrics()
+    return render_template(
+        "dns_scan.html",
+        accuracy=metrics.get("accuracy", 0),
+        active_page="dns_scan",
+        examples=get_dns_examples(),
+        error=None,
+        prefill=request.args.get("q", "").strip(),
+    )
+
+
+@app.route("/dns-predict", methods=["POST"])
+def dns_predict():
+    metrics = _load_metrics()
+    query = (request.form.get("query") or request.form.get("q") or "").strip()
+    if not query:
+        return render_template(
+            "dns_scan.html",
+            accuracy=metrics.get("accuracy", 0),
+            active_page="dns_scan",
+            examples=get_dns_examples(),
+            error="Please enter a DNS query name (for example: example.com).",
+            prefill="",
+        )
+    try:
+        result = predict_dns_query(query)
+        _save_dns_scan(result)
+    except ValueError as exc:
+        return render_template(
+            "dns_scan.html",
+            accuracy=metrics.get("accuracy", 0),
+            active_page="dns_scan",
+            examples=get_dns_examples(),
+            error=str(exc),
+            prefill=query,
+        )
+    except Exception as exc:
+        return render_template(
+            "dns_scan.html",
+            accuracy=metrics.get("accuracy", 0),
+            active_page="dns_scan",
+            examples=get_dns_examples(),
+            error=f"DNS classification failed: {exc}",
+            prefill=query,
+        )
+
+    return render_template(
+        "dns_result.html",
+        accuracy=metrics.get("accuracy", 0),
+        active_page="dns_scan",
+        **result,
+    )
+
+
+@app.route("/dns-limitations")
+def dns_limitations():
+    """Learn-more page: synthetic data, length baseline, LOOT highlights."""
+    metrics = _load_metrics()
+    loot = []
+    length_baseline = None
+    risk = "HIGH"
+    try:
+        with open(
+            BASE_DIR / "model" / "saved" / "dns_leakage_report.json",
+            encoding="utf-8",
+        ) as f:
+            report = json.load(f)
+        loot = report.get("leave_one_tool_out") or []
+        risk = report.get("risk_level", risk)
+        for row in report.get("single_feature_rf_test_accuracy") or []:
+            if row.get("feature") == "dns_domain_name_length":
+                length_baseline = row.get("accuracy")
+                break
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    return render_template(
+        "dns_limitations.html",
+        accuracy=metrics.get("accuracy", 0),
+        active_page="dns_scan",
+        loot=loot,
+        length_baseline=length_baseline,
+        risk_level=risk,
     )
 
 

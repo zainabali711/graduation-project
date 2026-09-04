@@ -10,7 +10,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from admin_auth import admin_required, current_admin, login_admin, logout_admin
-from models import Admin, DomainScan, UrlScan, User, db
+from models import Admin, DnsScan, DomainScan, UrlScan, User, db
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -120,11 +120,13 @@ def dashboard():
     total_users = User.query.count()
     total_url_scans = UrlScan.query.count()
     total_domain_scans = DomainScan.query.count()
+    total_dns_scans = DnsScan.query.count()
 
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     scans_today = (
         UrlScan.query.filter(UrlScan.scan_date >= today_start).count()
         + DomainScan.query.filter(DomainScan.scan_date >= today_start).count()
+        + DnsScan.query.filter(DnsScan.scan_date >= today_start).count()
     )
 
     malicious_count = UrlScan.query.filter(UrlScan.result == "Malicious").count()
@@ -140,6 +142,7 @@ def dashboard():
         total_users=total_users,
         total_url_scans=total_url_scans,
         total_domain_scans=total_domain_scans,
+        total_dns_scans=total_dns_scans,
         scans_today=scans_today,
         malicious_count=malicious_count,
         safe_count=safe_count,
@@ -173,6 +176,7 @@ def delete_user(user_id: int):
     username = user.username
     UrlScan.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     DomainScan.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    DnsScan.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     db.session.delete(user)
     db.session.commit()
     flash(f"Deleted user '{username}' and their scan history.", "success")
@@ -204,4 +208,17 @@ def domain_scans():
         admin=current_admin(),
         active_section="domain_scans",
         domains_pagination=domains_pagination,
+    )
+
+
+@admin_bp.route("/dns-scans")
+@admin_required
+def dns_scans():
+    page = request.args.get("page", 1, type=int)
+    dns_pagination = _paginate(DnsScan.query.order_by(DnsScan.scan_date.desc()), page)
+    return render_template(
+        "admin/dns_scans.html",
+        admin=current_admin(),
+        active_section="dns_scans",
+        dns_pagination=dns_pagination,
     )

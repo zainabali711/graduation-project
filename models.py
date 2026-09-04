@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
 
     url_scans = db.relationship("UrlScan", back_populates="user", lazy=True)
     domain_scans = db.relationship("DomainScan", back_populates="user", lazy=True)
+    dns_scans = db.relationship("DnsScan", back_populates="user", lazy=True)
 
     @property
     def is_active(self) -> bool:
@@ -80,3 +81,20 @@ class DomainScan(db.Model):
     scan_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     user = db.relationship("User", back_populates="domain_scans")
+
+
+class DnsScan(db.Model):
+    """Offline DNS query-name classification history."""
+
+    __tablename__ = "dns_scans"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    query_name = db.Column(db.String(2048), nullable=False)
+    result = db.Column(db.String(32), nullable=False)
+    risk_level = db.Column(db.String(32), nullable=False)
+    confidence = db.Column(db.Float, nullable=False, default=0.0)
+    generalization_level = db.Column(db.String(64), nullable=True)
+    scan_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", back_populates="dns_scans")

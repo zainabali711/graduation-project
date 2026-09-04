@@ -8,3 +8,6 @@ venv/
 .DS_Store
 *.db
 instance/
+
+# Large local datasets (keep scripts/summaries; not the multi‑GB CSV)
+data/dns_dataset.csv

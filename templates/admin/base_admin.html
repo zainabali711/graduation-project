@@ -42,6 +42,9 @@
       <a href="{{ url_for('admin.domain_scans') }}" class="admin-nav-item {% if active_section == 'domain_scans' %}active{% endif %}">
         Domain Scan Logs
       </a>
+      <a href="{{ url_for('admin.dns_scans') }}" class="admin-nav-item {% if active_section == 'dns_scans' %}active{% endif %}">
+        DNS Scan Logs
+      </a>
       <a href="{{ url_for('admin.logout') }}" class="admin-nav-item admin-nav-logout">
         Logout
       </a>

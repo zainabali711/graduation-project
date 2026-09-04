@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}DNS Module Limitations — CyberScan{% endblock %}
+
+{% block content %}
+<main class="page-shell dns-limitations-page">
+  <header class="landing-brand" style="margin-bottom: 1.25rem;">
+    <h1 class="landing-brand-name">DNS Scanner<em>Limitations</em></h1>
+  </header>
+
+  <div class="dns-warning" role="status">
+    Investigation risk level: <strong>{{ risk_level }}</strong>.
+    Do not treat in-distribution ~99.9% accuracy as unqualified real-world proof.
+  </div>
+
+  <section class="panel">
+    <h2 class="panel-title">Synthetic training data</h2>
+    <p>
+      The classifier uses the Daumel DNS tunneling/exfiltration dataset. The author states
+      it is synthetically generated and may not reflect real-world DNS traffic. Tool
+      families (iodine, dnscat2, ozymandns, etc.) were inherited from that release — not
+      selected independently by this project.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Length-only baseline</h2>
+    <p>
+      A Random Forest using only <code>dns_domain_name_length</code> already reaches about
+      <strong class="mono">{% if length_baseline %}{{ '%.1f'|format(length_baseline * 100) }}{% else %}95.8{% endif %}%</strong>
+      test accuracy on the same sample. The hybrid model largely refines a strong
+      length/subdomain separation common in this synthetic corpus.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Leave-one-tool-out (malicious recall)</h2>
+    <p>
+      When one malicious generator is held out of training, recall on that tool often collapses.
+      Mean holdout malicious recall across tools is about <span class="mono">31%</span>.
+    </p>
+    <div class="admin-table-wrap">
+      <table class="admin-table dns-loot-table">
+        <thead>
+          <tr>
+            <th>Held-out tool</th>
+            <th>Malicious recall</th>
+            <th>Balanced accuracy</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in loot %}
+          <tr>
+            <td class="mono">{{ row.held_out_tool }}</td>
+            <td class="mono">{{ '%.3f'|format(row.holdout_malicious_recall) }}</td>
+            <td class="mono">{{ '%.3f'|format(row.balanced_test_accuracy) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">Leakage report not loaded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">What the UI does about this</h2>
+    <ul>
+      <li>Persistent warning on the scan page</li>
+      <li>Demo examples biased toward stronger LOOT tools (e.g. ozymandns) plus benign</li>
+      <li>Generalization confidence on results (training percentile check)</li>
+    </ul>
+  </section>
+
+  <div class="result-actions">
+    <a href="{{ url_for('dns_scan') }}" class="btn-scan btn-inline"><span class="btn-scan-label">Back to DNS Scanner</span></a>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}DNS Scan Logs — Admin — CyberScan{% endblock %}
+{% block page_heading %}DNS Scan Logs{% endblock %}
+
+{% block content %}
+<section class="admin-section" id="dns-scans">
+  <h2 class="admin-section-title">DNS query scan logs</h2>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Query</th>
+          <th>Result</th>
+          <th>Risk</th>
+          <th>Confidence</th>
+          <th>Generalization</th>
+          <th>Scan date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for scan in dns_pagination.items %}
+        <tr>
+          <td class="mono">{{ scan.user.username if scan.user else 'Guest' }}</td>
+          <td class="admin-url mono" title="{{ scan.query_name }}">{{ scan.query_name }}</td>
+          <td>
+            {% if scan.result == 'Malicious' %}
+            <span class="admin-badge admin-badge-no">Malicious</span>
+            {% else %}
+            <span class="admin-badge admin-badge-yes">Safe</span>
+            {% endif %}
+          </td>
+          <td>{{ scan.risk_level }}</td>
+          <td class="mono">{{ '%.1f'|format(scan.confidence if scan.confidence > 1 else scan.confidence * 100) }}%</td>
+          <td class="mono">{{ scan.generalization_level or '—' }}</td>
+          <td class="mono">{{ scan.scan_date.strftime('%Y-%m-%d %H:%M') if scan.scan_date else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="admin-empty">No DNS scans yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if dns_pagination.pages > 1 %}
+  <nav class="admin-pager" aria-label="DNS scans pagination">
+    {% if dns_pagination.has_prev %}
+    <a href="{{ url_for('admin.dns_scans', page=dns_pagination.prev_num) }}">← Previous</a>
+    {% endif %}
+    <span class="mono">Page {{ dns_pagination.page }} / {{ dns_pagination.pages }}</span>
+    {% if dns_pagination.has_next %}
+    <a href="{{ url_for('admin.dns_scans', page=dns_pagination.next_num) }}">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

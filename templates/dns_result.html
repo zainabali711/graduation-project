@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}DNS Result — CyberScan{% endblock %}
+
+{% block content %}
+{% set verdict_class = 'malicious' if label == 'Malicious' else 'benign' %}
+{% set display_label = 'MALICIOUS' if label == 'Malicious' else 'BENIGN' %}
+{% set gen = generalization if generalization is defined else {} %}
+{% set gen_level = gen.get('level', 'Unknown') if gen else 'Unknown' %}
+{% set gen_score = gen.get('score', 0) if gen else 0 %}
+{% set gen_caution = gen.get('caution') if gen else None %}
+
+<main class="page-shell">
+  <div class="result-page {{ verdict_class }} dns-result-page">
+    <header class="result-hero">
+      <div class="verdict-glow {{ verdict_class }}">{{ display_label }}</div>
+      <div class="result-url mono">{{ query_name }}</div>
+      <div class="result-subtype">DNS query-name ML · Risk: {{ risk_level }}</div>
+    </header>
+
+    <div class="dns-warning dns-warning--compact" role="status">
+      {{ dataset_caveat|default('Trained on synthetic Daumel DNS data — may not reflect real-world traffic.', true) }}
+      <a href="{{ url_for('dns_limitations') }}">Learn more</a>
+    </div>
+
+    <section class="panel gauge-card {{ verdict_class }}">
+      <h2 class="panel-title">Model confidence</h2>
+      <div class="confidence-bars">
+        <div class="conf-row">
+          <div class="conf-meta">
+            <span>Malicious</span>
+            <span class="mono">{{ '%.2f'|format(malicious_probability) }}%</span>
+          </div>
+          <div class="conf-track">
+            <div class="conf-fill red" style="width: {{ malicious_probability }}%"></div>
+          </div>
+        </div>
+        <div class="conf-row">
+          <div class="conf-meta">
+            <span>Benign</span>
+            <span class="mono">{{ '%.2f'|format(benign_probability) }}%</span>
+          </div>
+          <div class="conf-track">
+            <div class="conf-fill teal" style="width: {{ benign_probability }}%"></div>
+          </div>
+        </div>
+      </div>
+      <p class="dns-conf-note mono">Primary confidence: {{ '%.1f'|format(confidence) }}%</p>
+    </section>
+
+    <section class="panel dns-gen-panel dns-gen-{{ gen_level|lower|replace(' ', '-') }}">
+      <h2 class="panel-title">Generalization confidence</h2>
+      <p class="dns-gen-score mono">{{ gen_score }} / 100 · {{ gen_level }}</p>
+      <p class="dns-gen-help">
+        Based on whether length, subdomain length, entropy, digit ratio, and digit count
+        fall inside the synthetic training percentiles (p1–p99).
+      </p>
+      {% if gen_caution %}
+      <div class="dns-gen-caution" role="alert">{{ gen_caution }}</div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Query features (snapshot)</h2>
+      <table class="dns-feat-table">
+        <tbody>
+          <tr><th>Length</th><td class="mono">{{ features.dns_domain_name_length }}</td></tr>
+          <tr><th>Subdomain length</th><td class="mono">{{ features.dns_subdomain_name_length }}</td></tr>
+          <tr><th>Character entropy</th><td class="mono">{{ '%.3f'|format(features.character_entropy) }}</td></tr>
+          <tr><th>Numerical %</th><td class="mono">{{ '%.3f'|format(features.numerical_percentage) }}</td></tr>
+          <tr><th>Digit count</th><td class="mono">{{ features.digit_count }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="result-actions">
+      <a href="{{ url_for('dns_scan') }}" class="btn-scan btn-inline"><span class="btn-scan-label">Classify another</span></a>
+      <a href="{{ url_for('dns_limitations') }}" class="btn-ghost">Limitations</a>
+    </div>
+  </div>
+</main>
+{% endblock %}

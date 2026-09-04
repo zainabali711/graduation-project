@@ -1959,3 +1959,149 @@ textarea:focus,
     margin-top: 8px;
   }
 }
+
+/* ----- DNS Query Scanner (additive) ----- */
+.dns-warning {
+  width: min(720px, 100%);
+  margin: 0 auto 1.25rem;
+  padding: 0.9rem 1.1rem;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 26, 61, 0.55);
+  background: rgba(139, 26, 61, 0.14);
+  color: #f0c4d0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  box-shadow: 0 0 20px rgba(139, 26, 61, 0.2);
+}
+
+.dns-warning a {
+  color: #ffd0dc;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.dns-warning--compact {
+  margin-bottom: 1rem;
+  font-size: 0.86rem;
+}
+
+.dns-lead {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.dns-examples {
+  width: min(720px, 100%);
+  margin: 1.75rem auto 0;
+  text-align: left;
+}
+
+.dns-examples-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #e8c4ce;
+}
+
+.dns-example-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.65rem;
+}
+
+.dns-example-chip {
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 26, 61, 0.35);
+  background: rgba(20, 4, 10, 0.65);
+  color: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dns-example-chip:hover {
+  border-color: rgba(139, 26, 61, 0.75);
+  box-shadow: 0 0 16px rgba(139, 26, 61, 0.28);
+  transform: translateY(-1px);
+}
+
+.dns-example-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.dns-example-meta {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.dns-gen-panel {
+  border-color: rgba(139, 26, 61, 0.35);
+}
+
+.dns-gen-score {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  color: #f0c4d0;
+}
+
+.dns-gen-help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.dns-gen-caution {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  background: rgba(234, 179, 8, 0.1);
+  color: #fde68a;
+  font-size: 0.9rem;
+}
+
+.dns-gen-out-of-distribution .dns-gen-caution {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+}
+
+.dns-feat-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dns-feat-table th,
+.dns-feat-table td {
+  padding: 0.45rem 0.35rem;
+  border-bottom: 1px solid rgba(139, 26, 61, 0.2);
+  text-align: left;
+}
+
+.dns-feat-table th {
+  color: #e8c4ce;
+  font-weight: 500;
+  width: 45%;
+}
+
+.dns-conf-note {
+  margin: 0.85rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.dns-limitations-page .panel {
+  margin-bottom: 1rem;
+}
+
+.dns-loot-table {
+  margin-top: 0.75rem;
+}

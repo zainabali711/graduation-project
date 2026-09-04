@@ -1,0 +1,63 @@
+{
+  "key_features": [
+    "dns_domain_name_length",
+    "dns_subdomain_name_length",
+    "character_entropy",
+    "numerical_percentage",
+    "digit_count"
+  ],
+  "sample_size": 100000,
+  "random_state": 42,
+  "ranges": {
+    "dns_domain_name_length": {
+      "p1": 10.0,
+      "p99": 252.0,
+      "q1": 22.0,
+      "q3": 72.0,
+      "iqr_low": -53.0,
+      "iqr_high": 147.0,
+      "mean": 69.93108,
+      "std": 74.76014901558455
+    },
+    "dns_subdomain_name_length": {
+      "p1": 0.0,
+      "p99": 242.0,
+      "q1": 8.0,
+      "q3": 60.0,
+      "iqr_low": -70.0,
+      "iqr_high": 138.0,
+      "mean": 55.97859,
+      "std": 73.64054603893231
+    },
+    "character_entropy": {
+      "p1": 2.75,
+      "p99": 5.13987401,
+      "q1": 3.653661,
+      "q3": 4.44935575,
+      "iqr_low": 2.460118875000001,
+      "iqr_high": 5.642897874999999,
+      "mean": 4.08471748031,
+      "std": 0.5750018030385291
+    },
+    "numerical_percentage": {
+      "p1": 0.0,
+      "p99": 0.619469,
+      "q1": 0.0,
+      "q3": 0.333333,
+      "iqr_low": -0.4999995,
+      "iqr_high": 0.8333325,
+      "mean": 0.19794416162,
+      "std": 0.18456965169054193
+    },
+    "digit_count": {
+      "p1": 0.0,
+      "p99": 140.0,
+      "q1": 0.0,
+      "q3": 23.0,
+      "iqr_low": -34.5,
+      "iqr_high": 57.5,
+      "mean": 19.48687,
+      "std": 32.71196277095252
+    }
+  }
+}

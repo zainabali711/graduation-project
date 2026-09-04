@@ -1,0 +1,243 @@
+{
+  "source_root": "C:\\Users\\zainab\\Downloads\\archive (1)\\dns-exfiltration-dataset\\02_generated_dataset",
+  "consolidation": {
+    "total_rows": 1583163,
+    "per_source_tool": {
+      "benign": 797626,
+      "cobaltstrike": 141207,
+      "dns2tcp": 65140,
+      "dnscat2": 144446,
+      "dnsexfiltrator": 58323,
+      "dnsexfiltrator_modified": 46596,
+      "dnspot": 26531,
+      "iodine": 130059,
+      "ozymandns": 61988,
+      "tcp_over_dns": 111247
+    },
+    "label_counts": {
+      "Benign": 797626,
+      "Malicious": 785537
+    },
+    "columns": [
+      "flow_id",
+      "timestamp",
+      "src_ip",
+      "src_port",
+      "dst_ip",
+      "dst_port",
+      "duration",
+      "total_bytes",
+      "receiving_bytes",
+      "sending_bytes",
+      "packets_rate",
+      "packets_len_rate",
+      "min_packets_len",
+      "max_packets_len",
+      "mean_packets_len",
+      "standard_deviation_packets_len",
+      "variance_packets_len",
+      "coefficient_of_variation_packets_len",
+      "dns_domain_name",
+      "dns_top_level_domain",
+      "dns_second_level_domain",
+      "dns_domain_name_length",
+      "dns_subdomain_name_length",
+      "uni_gram_domain_name",
+      "bi_gram_domain_name",
+      "tri_gram_domain_name",
+      "numerical_percentage",
+      "character_distribution",
+      "character_entropy",
+      "max_continuous_numeric_len",
+      "max_continuous_alphabet_len",
+      "max_continuous_consonants_len",
+      "max_continuous_same_alphabet_len",
+      "vowels_consonant_ratio",
+      "conv_freq_vowels_consonants",
+      "distinct_ttl_values",
+      "ttl_values_min",
+      "ttl_values_max",
+      "ttl_values_mean",
+      "ttl_values_mode",
+      "ttl_values_median",
+      "distinct_A_records",
+      "ans_resource_record_type",
+      "ans_resource_record_class",
+      "label",
+      "source_tool"
+    ],
+    "output_csv": "C:\\Users\\zainab\\OneDrive\\Documents\\url-shield\\data\\dns_dataset.csv"
+  },
+  "exploration": {
+    "total_rows": 1583163,
+    "label_counts": {
+      "Benign": 797626,
+      "Malicious": 785537
+    },
+    "class_balance_pct": {
+      "Benign": {
+        "count": 797626,
+        "pct": 50.3818
+      },
+      "Malicious": {
+        "count": 785537,
+        "pct": 49.6182
+      }
+    },
+    "per_source_tool": {
+      "benign": 797626,
+      "cobaltstrike": 141207,
+      "dns2tcp": 65140,
+      "dnscat2": 144446,
+      "dnsexfiltrator": 58323,
+      "dnsexfiltrator_modified": 46596,
+      "dnspot": 26531,
+      "iodine": 130059,
+      "ozymandns": 61988,
+      "tcp_over_dns": 111247
+    },
+    "null_counts_key_columns": {
+      "dns_domain_name": 0,
+      "dns_domain_name_length": 0,
+      "dns_subdomain_name_length": 0,
+      "character_entropy": 0,
+      "numerical_percentage": 0,
+      "vowels_consonant_ratio": 0,
+      "conv_freq_vowels_consonants": 0,
+      "uni_gram_domain_name": 0,
+      "bi_gram_domain_name": 0,
+      "tri_gram_domain_name": 0,
+      "character_distribution": 0,
+      "distinct_ttl_values": 0,
+      "ttl_values_mean": 0,
+      "duration": 0,
+      "total_bytes": 0,
+      "label": 0,
+      "source_tool": 0
+    },
+    "dtypes_key_columns": {
+      "dns_domain_name": "str",
+      "dns_domain_name_length": "int64",
+      "dns_subdomain_name_length": "int64",
+      "character_entropy": "float64",
+      "numerical_percentage": "float64",
+      "vowels_consonant_ratio": "float64",
+      "conv_freq_vowels_consonants": "float64",
+      "uni_gram_domain_name": "str",
+      "bi_gram_domain_name": "str",
+      "tri_gram_domain_name": "str",
+      "character_distribution": "str",
+      "distinct_ttl_values": "int64",
+      "ttl_values_mean": "float64",
+      "duration": "float64",
+      "total_bytes": "int64",
+      "label": "str",
+      "source_tool": "str"
+    },
+    "dns_domain_name_dup_rate_approx": {
+      "sampled_rows": 200000,
+      "unique_names_in_sample": 160154,
+      "duplicate_row_hits_in_sample": 39846,
+      "note": "Approximate: first N rows only; not full-dataset exact dedupe."
+    },
+    "column_peek": {
+      "uni_gram_domain_name": {
+        "dtype": "str",
+        "sample_values": [
+          "\"['u', 's', 'e', '.', 't', 'y', 'p', 'e', 'k', 'i', 't', '.', 'n', 'e', 't', '.']\"",
+          "\"['a', 'c', 'e', 's', 's', 'a', 'b', 'r', 'a', 's', 'i', 'l', '.', 'c', 'o', 'm', '.', 'b', 'r', '.']\"",
+          "\"['4', 'g', 'a', 'm', 'e', 'r', 's', '.', 'c', 'o', '.', 't', 'h', '.']\""
+        ]
+      },
+      "bi_gram_domain_name": {
+        "dtype": "str",
+        "sample_values": [
+          "\"['us', 'se', 'e.', '.t', 'ty', 'yp', 'pe', 'ek', 'ki', 'it', 't.', '.n', 'ne', 'et', 't.']\"",
+          "\"['ac', 'ce', 'es', 'ss', 'sa', 'ab', 'br', 'ra', 'as', 'si', 'il', 'l.', '.c', 'co', 'om', 'm.', '.b', 'br', 'r.']\"",
+          "\"['4g', 'ga', 'am', 'me', 'er', 'rs', 's.', '.c', 'co', 'o.', '.t', 'th', 'h.']\""
+        ]
+      },
+      "tri_gram_domain_name": {
+        "dtype": "str",
+        "sample_values": [
+          "\"['use', 'se.', 'e.t', '.ty', 'typ', 'ype', 'pek', 'eki', 'kit', 'it.', 't.n', '.ne', 'net', 'et.']\"",
+          "\"['ace', 'ces', 'ess', 'ssa', 'sab', 'abr', 'bra', 'ras', 'asi', 'sil', 'il.', 'l.c', '.co', 'com', 'om.', 'm.b', '.br',",
+          "\"['4ga', 'gam', 'ame', 'mer', 'ers', 'rs.', 's.c', '.co', 'co.', 'o.t', '.th', 'th.']\""
+        ]
+      },
+      "character_distribution": {
+        "dtype": "str",
+        "sample_values": [
+          "\"{'k': 1, 'i': 1, 'y': 1, '.': 3, 'n': 1, 't': 3, 'e': 3, 's': 1, 'u': 1, 'p': 1}\"",
+          "\"{'o': 1, 'm': 1, 'b': 2, 'i': 1, 'r': 2, 'l': 1, 'a': 3, 'e': 1, '.': 3, 'c': 2, 's': 3}\"",
+          "\"{'o': 1, 'g': 1, 'm': 1, 'c': 1, 'r': 1, 'a': 1, '.': 3, 't': 1, 'e': 1, 's': 1, '4': 1, 'h': 1}\""
+        ]
+      },
+      "dns_top_level_domain": {
+        "dtype": "str",
+        "sample_values": [
+          "'net'",
+          "'br'",
+          "'th'"
+        ]
+      },
+      "dns_second_level_domain": {
+        "dtype": "str",
+        "sample_values": [
+          "'typekit.net'",
+          "'com.br'",
+          "'co.th'"
+        ]
+      }
+    },
+    "all_columns": [
+      "flow_id",
+      "timestamp",
+      "src_ip",
+      "src_port",
+      "dst_ip",
+      "dst_port",
+      "duration",
+      "total_bytes",
+      "receiving_bytes",
+      "sending_bytes",
+      "packets_rate",
+      "packets_len_rate",
+      "min_packets_len",
+      "max_packets_len",
+      "mean_packets_len",
+      "standard_deviation_packets_len",
+      "variance_packets_len",
+      "coefficient_of_variation_packets_len",
+      "dns_domain_name",
+      "dns_top_level_domain",
+      "dns_second_level_domain",
+      "dns_domain_name_length",
+      "dns_subdomain_name_length",
+      "uni_gram_domain_name",
+      "bi_gram_domain_name",
+      "tri_gram_domain_name",
+      "numerical_percentage",
+      "character_distribution",
+      "character_entropy",
+      "max_continuous_numeric_len",
+      "max_continuous_alphabet_len",
+      "max_continuous_consonants_len",
+      "max_continuous_same_alphabet_len",
+      "vowels_consonant_ratio",
+      "conv_freq_vowels_consonants",
+      "distinct_ttl_values",
+      "ttl_values_min",
+      "ttl_values_max",
+      "ttl_values_mean",
+      "ttl_values_mode",
+      "ttl_values_median",
+      "distinct_A_records",
+      "ans_resource_record_type",
+      "ans_resource_record_class",
+      "label",
+      "source_tool"
+    ]
+  },
+  "dataset_caveat": "Synthetically generated (Daumel DNS tunneling/exfiltration dataset); may not reflect real-world DNS traffic."
+}

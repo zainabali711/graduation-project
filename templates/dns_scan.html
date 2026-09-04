@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}DNS Query Scanner — CyberScan{% endblock %}
+
+{% block content %}
+<main class="page-shell landing dns-scan-page">
+  <div class="landing-brand">
+    <svg class="landing-logo" viewBox="0 0 48 56" aria-hidden="true">
+      <path
+        fill="rgba(139, 26, 61, 0.08)"
+        stroke="#8B1A3D"
+        stroke-width="2.2"
+        stroke-linejoin="round"
+        d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
+      />
+    </svg>
+    <h1 class="landing-brand-name">DNS Query Scanner<em>Offline ML · Synthetic data</em></h1>
+  </div>
+
+  <div class="dns-warning" role="status">
+    <strong>Reliability warning.</strong>
+    This module was trained on a <em>synthetic</em> DNS tunneling/exfiltration dataset
+    (Daumel). It may <strong>not generalize</strong> to real-world DNS query patterns
+    outside that training distribution.
+    <a href="{{ url_for('dns_limitations') }}">Learn more</a>
+  </div>
+
+  <div class="landing-title-block">
+    <h2 class="landing-headline">Classify a DNS query name</h2>
+    <p class="dns-lead">Offline lexical ML only — not live network monitoring.</p>
+  </div>
+
+  {% if error %}
+  <div class="alert-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form id="dnsScanForm" action="{{ url_for('dns_predict') }}" method="POST" class="scan-pill">
+    <input
+      type="text"
+      id="dnsQueryInput"
+      name="query"
+      class="scan-input"
+      placeholder="Enter DNS query name (e.g. api.example.com)"
+      autocomplete="off"
+      value="{{ prefill|default('', true) }}"
+      required
+    >
+    <button type="submit" class="btn-scan">
+      <span class="btn-scan-label">Classify</span>
+    </button>
+  </form>
+
+  <section class="dns-examples" aria-label="Example queries">
+    <h3 class="dns-examples-title">Try a pre-verified example</h3>
+    <div class="dns-example-grid">
+      {% for ex in examples %}
+      <button
+        type="button"
+        class="dns-example-chip"
+        data-query="{{ ex.query }}"
+        title="{{ ex.note }}"
+      >
+        <span class="dns-example-label">{{ ex.title }}</span>
+        <span class="dns-example-meta mono">{{ ex.source_tool }} · {{ ex.expected_label }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var input = document.getElementById("dnsQueryInput");
+  document.querySelectorAll("[data-query]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (!input) return;
+      input.value = btn.getAttribute("data-query") || "";
+      input.focus();
+    });
+  });
+})();
+</script>
+{% endblock %}

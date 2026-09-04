@@ -1,0 +1,497 @@
+{
+  "risk_level": "HIGH",
+  "present_99_9_as_unqualified_headline": false,
+  "summary": "Near-perfect in-distribution accuracy is NOT trustworthy as a real-world headline. Length/subdomain features alone nearly separate classes; leave-one-tool-out malicious recall collapses for several tools. The model largely fits synthetic multi-tool query-name artifacts.",
+  "dataset_caveat": "Daumel DNS tunneling/exfiltration dataset is synthetically generated and may not reflect real-world DNS traffic.",
+  "rf_feature_importance_ranked": [
+    {
+      "feature": "dns_domain_name_length",
+      "importance": 0.18810663579996617
+    },
+    {
+      "feature": "dns_subdomain_name_length",
+      "importance": 0.1355531235391492
+    },
+    {
+      "feature": "character_entropy",
+      "importance": 0.10824445590598454
+    },
+    {
+      "feature": "alpha_count",
+      "importance": 0.07514669062560424
+    },
+    {
+      "feature": "max_continuous_consonants_len",
+      "importance": 0.07412483251666277
+    },
+    {
+      "feature": "hyphen_count",
+      "importance": 0.05960730301800809
+    },
+    {
+      "feature": "dot_count",
+      "importance": 0.057413810133962184
+    },
+    {
+      "feature": "label_count",
+      "importance": 0.0517340024213302
+    },
+    {
+      "feature": "sld_length",
+      "importance": 0.05151076461639277
+    },
+    {
+      "feature": "digit_count",
+      "importance": 0.04846404528566278
+    },
+    {
+      "feature": "max_continuous_numeric_len",
+      "importance": 0.03710597509606539
+    },
+    {
+      "feature": "numerical_percentage",
+      "importance": 0.0331012375409298
+    },
+    {
+      "feature": "max_continuous_alphabet_len",
+      "importance": 0.030915219452347997
+    },
+    {
+      "feature": "conv_freq_vowels_consonants",
+      "importance": 0.01736530517265833
+    },
+    {
+      "feature": "unique_char_ratio",
+      "importance": 0.0157718937615499
+    },
+    {
+      "feature": "vowels_consonant_ratio",
+      "importance": 0.012377998572211254
+    },
+    {
+      "feature": "max_continuous_same_alphabet_len",
+      "importance": 0.002308398795849923
+    },
+    {
+      "feature": "tld_length",
+      "importance": 0.0011483077456643169
+    }
+  ],
+  "top1_importance_share": 0.18810663579996617,
+  "top2_importance_share": 0.3236597593391154,
+  "mean_abs_separation_benign_vs_malicious": {
+    "dns_domain_name_length": 76.28968,
+    "dns_subdomain_name_length": 73.31394,
+    "alpha_count": 47.290620000000004,
+    "digit_count": 27.277499999999996,
+    "max_continuous_alphabet_len": 3.17296,
+    "max_continuous_consonants_len": 2.94686,
+    "sld_length": 2.892760000000001,
+    "max_continuous_numeric_len": 2.79958,
+    "label_count": 0.9016599999999997,
+    "dot_count": 0.9016599999999997,
+    "character_entropy": 0.7444224810599995,
+    "max_continuous_same_alphabet_len": 0.5925799999999999,
+    "hyphen_count": 0.3186200000000001,
+    "unique_char_ratio": 0.20218650647999997,
+    "vowels_consonant_ratio": 0.17011205952000003,
+    "conv_freq_vowels_consonants": 0.16792615181999987,
+    "numerical_percentage": 0.15563562164,
+    "tld_length": 0.010079999999999867
+  },
+  "mutual_info_feature_to_label": [
+    {
+      "feature": "dns_domain_name_length",
+      "mi": 0.5881678253862588
+    },
+    {
+      "feature": "dns_subdomain_name_length",
+      "mi": 0.568247531749059
+    },
+    {
+      "feature": "character_entropy",
+      "mi": 0.5249988064840714
+    },
+    {
+      "feature": "unique_char_ratio",
+      "mi": 0.5179769744475096
+    },
+    {
+      "feature": "numerical_percentage",
+      "mi": 0.5158161353078297
+    },
+    {
+      "feature": "alpha_count",
+      "mi": 0.4231942821379022
+    },
+    {
+      "feature": "conv_freq_vowels_consonants",
+      "mi": 0.3639792283114278
+    },
+    {
+      "feature": "vowels_consonant_ratio",
+      "mi": 0.30551383045098146
+    },
+    {
+      "feature": "digit_count",
+      "mi": 0.30442936565101
+    },
+    {
+      "feature": "max_continuous_numeric_len",
+      "mi": 0.25661886312306015
+    },
+    {
+      "feature": "label_count",
+      "mi": 0.2512799129474985
+    },
+    {
+      "feature": "dot_count",
+      "mi": 0.24884007043139045
+    },
+    {
+      "feature": "sld_length",
+      "mi": 0.24318390727033212
+    },
+    {
+      "feature": "max_continuous_consonants_len",
+      "mi": 0.22518311812380754
+    },
+    {
+      "feature": "hyphen_count",
+      "mi": 0.15739878903622984
+    },
+    {
+      "feature": "max_continuous_alphabet_len",
+      "mi": 0.13204508059524245
+    },
+    {
+      "feature": "max_continuous_same_alphabet_len",
+      "mi": 0.07133869539600668
+    },
+    {
+      "feature": "tld_length",
+      "mi": 0.010412145832362274
+    }
+  ],
+  "mutual_info_feature_to_source_tool_malicious_only": [
+    {
+      "feature": "unique_char_ratio",
+      "mi": 1.9051211418388116
+    },
+    {
+      "feature": "numerical_percentage",
+      "mi": 1.85107998674687
+    },
+    {
+      "feature": "dns_subdomain_name_length",
+      "mi": 1.8439762013789769
+    },
+    {
+      "feature": "dns_domain_name_length",
+      "mi": 1.8166611907206764
+    },
+    {
+      "feature": "character_entropy",
+      "mi": 1.6351136433808582
+    },
+    {
+      "feature": "sld_length",
+      "mi": 1.5634095172093583
+    },
+    {
+      "feature": "digit_count",
+      "mi": 1.411147530580741
+    },
+    {
+      "feature": "conv_freq_vowels_consonants",
+      "mi": 1.3748362610007472
+    },
+    {
+      "feature": "vowels_consonant_ratio",
+      "mi": 1.364477602282031
+    },
+    {
+      "feature": "alpha_count",
+      "mi": 1.3139864106817019
+    },
+    {
+      "feature": "max_continuous_alphabet_len",
+      "mi": 1.119178646267109
+    },
+    {
+      "feature": "dot_count",
+      "mi": 1.0810129941423405
+    },
+    {
+      "feature": "label_count",
+      "mi": 1.0799204894018994
+    },
+    {
+      "feature": "max_continuous_numeric_len",
+      "mi": 0.997482350518824
+    },
+    {
+      "feature": "hyphen_count",
+      "mi": 0.8778892353632615
+    },
+    {
+      "feature": "max_continuous_consonants_len",
+      "mi": 0.8724055940536126
+    },
+    {
+      "feature": "max_continuous_same_alphabet_len",
+      "mi": 0.5233745819129565
+    },
+    {
+      "feature": "tld_length",
+      "mi": 0.46337226271844
+    }
+  ],
+  "per_source_tool_means": [
+    {
+      "source_tool": "benign",
+      "n": 50000,
+      "mean_length": 31.78624,
+      "mean_subdomain_len": 19.32162,
+      "mean_entropy": 3.7125062397799997,
+      "mean_numerical_pct": 0.1201263508,
+      "mean_digit_count": 5.84812,
+      "mean_label_count": 4.42042
+    },
+    {
+      "source_tool": "cobaltstrike",
+      "n": 8888,
+      "mean_length": 87.87072457245725,
+      "mean_subdomain_len": 67.18800630063006,
+      "mean_entropy": 4.4605513605985605,
+      "mean_numerical_pct": 0.39174966887938795,
+      "mean_digit_count": 37.38737623762376,
+      "mean_label_count": 6.831233123312331
+    },
+    {
+      "source_tool": "dns2tcp",
+      "n": 4232,
+      "mean_length": 92.50756143667297,
+      "mean_subdomain_len": 76.50756143667297,
+      "mean_entropy": 4.463733271030246,
+      "mean_numerical_pct": 0.10142945392249526,
+      "mean_digit_count": 12.417533081285445,
+      "mean_label_count": 3.791351606805293
+    },
+    {
+      "source_tool": "dnscat2",
+      "n": 9233,
+      "mean_length": 148.62417415791182,
+      "mean_subdomain_len": 132.9998916928409,
+      "mean_entropy": 4.195814344633381,
+      "mean_numerical_pct": 0.5327159850536121,
+      "mean_digit_count": 83.1044081013755,
+      "mean_label_count": 4.637604245640637
+    },
+    {
+      "source_tool": "dnsexfiltrator",
+      "n": 3797,
+      "mean_length": 43.80458256518304,
+      "mean_subdomain_len": 32.80458256518304,
+      "mean_entropy": 4.490445277587569,
+      "mean_numerical_pct": 0.2286086636818541,
+      "mean_digit_count": 9.104029496971293,
+      "mean_label_count": 5.0
+    },
+    {
+      "source_tool": "dnsexfiltrator_modified",
+      "n": 3034,
+      "mean_length": 51.75444957152274,
+      "mean_subdomain_len": 40.75444957152274,
+      "mean_entropy": 4.31894813744232,
+      "mean_numerical_pct": 0.10158669116677653,
+      "mean_digit_count": 4.754449571522742,
+      "mean_label_count": 6.0
+    },
+    {
+      "source_tool": "dnspot",
+      "n": 1713,
+      "mean_length": 250.98307063631057,
+      "mean_subdomain_len": 240.98307063631057,
+      "mean_entropy": 5.095459063047286,
+      "mean_numerical_pct": 0.2814139112667834,
+      "mean_digit_count": 68.6211325160537,
+      "mean_label_count": 7.9848219497956805
+    },
+    {
+      "source_tool": "iodine",
+      "n": 8278,
+      "mean_length": 158.22759120560522,
+      "mean_subdomain_len": 140.6878473061126,
+      "mean_entropy": 4.634134905291133,
+      "mean_numerical_pct": 0.09954604759603768,
+      "mean_digit_count": 21.06607876298623,
+      "mean_label_count": 4.757308528630104
+    },
+    {
+      "source_tool": "ozymandns",
+      "n": 3813,
+      "mean_length": 129.37922895357985,
+      "mean_subdomain_len": 111.37922895357985,
+      "mean_entropy": 4.66616749986887,
+      "mean_numerical_pct": 0.27358809336480466,
+      "mean_digit_count": 27.72305271439811,
+      "mean_label_count": 7.396275898242854
+    },
+    {
+      "source_tool": "tcp_over_dns",
+      "n": 7012,
+      "mean_length": 43.161437535653164,
+      "mean_subdomain_len": 33.161437535653164,
+      "mean_entropy": 4.354632962920707,
+      "mean_numerical_pct": 0.20434607772390187,
+      "mean_digit_count": 8.19937250427838,
+      "mean_label_count": 4.0037079292641184
+    }
+  ],
+  "single_feature_rf_test_accuracy": [
+    {
+      "feature": "dns_domain_name_length",
+      "accuracy": 0.9582
+    },
+    {
+      "feature": "dns_subdomain_name_length",
+      "accuracy": 0.94125
+    },
+    {
+      "feature": "alpha_count",
+      "accuracy": 0.8709
+    },
+    {
+      "feature": "character_entropy",
+      "accuracy": 0.8537
+    },
+    {
+      "feature": "unique_char_ratio",
+      "accuracy": 0.8511
+    },
+    {
+      "feature": "numerical_percentage",
+      "accuracy": 0.84625
+    },
+    {
+      "feature": "digit_count",
+      "accuracy": 0.8238
+    },
+    {
+      "feature": "conv_freq_vowels_consonants",
+      "accuracy": 0.8042
+    },
+    {
+      "feature": "max_continuous_consonants_len",
+      "accuracy": 0.79575
+    },
+    {
+      "feature": "max_continuous_numeric_len",
+      "accuracy": 0.77975
+    },
+    {
+      "feature": "label_count",
+      "accuracy": 0.77685
+    },
+    {
+      "feature": "dot_count",
+      "accuracy": 0.77685
+    },
+    {
+      "feature": "sld_length",
+      "accuracy": 0.76955
+    },
+    {
+      "feature": "hyphen_count",
+      "accuracy": 0.7571
+    },
+    {
+      "feature": "vowels_consonant_ratio",
+      "accuracy": 0.7542
+    },
+    {
+      "feature": "max_continuous_alphabet_len",
+      "accuracy": 0.70765
+    },
+    {
+      "feature": "max_continuous_same_alphabet_len",
+      "accuracy": 0.6186
+    },
+    {
+      "feature": "tld_length",
+      "accuracy": 0.51855
+    }
+  ],
+  "leave_one_tool_out": [
+    {
+      "held_out_tool": "cobaltstrike",
+      "test_size": 17776,
+      "holdout_malicious_n": 8888,
+      "balanced_test_accuracy": 0.8063118811881188,
+      "holdout_malicious_recall": 0.6135238523852385
+    },
+    {
+      "held_out_tool": "dns2tcp",
+      "test_size": 8464,
+      "holdout_malicious_n": 4232,
+      "balanced_test_accuracy": 0.6978969754253308,
+      "holdout_malicious_recall": 0.3967391304347826
+    },
+    {
+      "held_out_tool": "dnscat2",
+      "test_size": 18466,
+      "holdout_malicious_n": 9233,
+      "balanced_test_accuracy": 0.5205242066500596,
+      "holdout_malicious_recall": 0.04180656341384165
+    },
+    {
+      "held_out_tool": "dnsexfiltrator",
+      "test_size": 7594,
+      "holdout_malicious_n": 3797,
+      "balanced_test_accuracy": 0.6489333684487754,
+      "holdout_malicious_recall": 0.2983934685277851
+    },
+    {
+      "held_out_tool": "dnsexfiltrator_modified",
+      "test_size": 6068,
+      "holdout_malicious_n": 3034,
+      "balanced_test_accuracy": 0.4995056031641397,
+      "holdout_malicious_recall": 0.0
+    },
+    {
+      "held_out_tool": "dnspot",
+      "test_size": 3426,
+      "holdout_malicious_n": 1713,
+      "balanced_test_accuracy": 0.4997081144191477,
+      "holdout_malicious_recall": 0.0
+    },
+    {
+      "held_out_tool": "iodine",
+      "test_size": 16556,
+      "holdout_malicious_n": 8278,
+      "balanced_test_accuracy": 0.7115245228316018,
+      "holdout_malicious_recall": 0.42377385841990817
+    },
+    {
+      "held_out_tool": "ozymandns",
+      "test_size": 7626,
+      "holdout_malicious_n": 3813,
+      "balanced_test_accuracy": 0.99737739312877,
+      "holdout_malicious_recall": 0.996328350380278
+    },
+    {
+      "held_out_tool": "tcp_over_dns",
+      "test_size": 14024,
+      "holdout_malicious_n": 7012,
+      "balanced_test_accuracy": 0.5008556759840274,
+      "holdout_malicious_recall": 0.0022818026240730175
+    }
+  ],
+  "recommendations": [
+    "In the paper/report, lead with methodology + synthetic-data limitation, not 99.9% accuracy as proof of real-world DNS malware detection.",
+    "State clearly that the classifier uses offline query-name lexical features on a synthetic multi-tool corpus.",
+    "If presenting accuracy, always pair with this leakage investigation (feature dominance, tool MI, leave-one-tool-out).",
+    "Consider future work: cross-tool evaluation, real capture validation, and comparing against length-only baselines."
+  ]
+}
