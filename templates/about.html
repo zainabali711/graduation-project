@@ -6,19 +6,11 @@
 <main class="page-shell">
   <div class="page-intro">
     <h1 class="page-title">About CyberScan</h1>
-    <p class="page-desc">A multi-service detection workspace for URLs, domains, and DNS query names.</p>
   </div>
 
   <div class="about-grid">
     <section class="panel">
       <h2 class="panel-title">Project</h2>
-      <p class="about-text">
-        CyberScan is a graduation project that combines <strong>three complementary services</strong>:
-        an ML + VirusTotal <strong>URL Scanner</strong>, a WHOIS/network <strong>Domain Inspector</strong>,
-        and an offline hybrid-ML <strong>DNS Query Scanner</strong> trained on synthetic query-name data.
-        Together they help students and researchers explore lexical detection, enrichment lookups,
-        and the limits of synthetic DNS datasets — with clear verdicts and honest caveats where needed.
-      </p>
       <div class="info-rows">
         <div class="info-row"><span>Student</span><span>Zainab Ali Saleem Al-Hattali</span></div>
         <div class="info-row"><span>University</span><span>Arab Open University, Muscat</span></div>
@@ -28,7 +20,6 @@
 
     <section class="panel">
       <h2 class="panel-title">How it works</h2>
-      <p class="panel-desc">Each service has its own pipeline.</p>
 
       <h3 class="about-subhead">URL Scanner</h3>
       <ol class="about-steps">
@@ -57,7 +48,6 @@
 
     <section class="panel">
       <h2 class="panel-title">URL lexical features</h2>
-      <p class="panel-desc">28 features used by the URL hybrid model (lexical + reputation).</p>
       <div class="feature-tags">
         <span class="feature-tag mono">url_length</span>
         <span class="feature-tag mono">domain_length</span>
@@ -92,7 +82,6 @@
 
     <section class="panel">
       <h2 class="panel-title">DNS query-name features</h2>
-      <p class="panel-desc">18 features derived from a single DNS query name string (train = predict).</p>
       <div class="feature-tags">
         {% for name in dns_feature_columns %}
         <span class="feature-tag mono">{{ name }}</span>
@@ -102,7 +91,6 @@
 
     <section class="panel">
       <h2 class="panel-title">Domain Inspector checks</h2>
-      <p class="panel-desc">Lookup signals — not ML classification features.</p>
       <div class="feature-tags">
         <span class="feature-tag mono">ip_address</span>
         <span class="feature-tag mono">country</span>
