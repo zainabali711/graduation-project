@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Settings — CyberScan{% endblock %}
+
+{% block content %}
+<main class="page-shell settings-page">
+  <div class="page-intro">
+    <h1 class="page-title">Settings</h1>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="settings-flashes" role="status">
+      {% for category, message in messages %}
+      <p class="settings-flash settings-flash-{{ category }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <section class="panel settings-section" id="account">
+    <h2 class="panel-title">Account</h2>
+
+    <form class="settings-form" method="POST" action="{{ url_for('settings_username') }}">
+      <h3 class="settings-subhead">Change username</h3>
+      <div class="form-field">
+        <label for="username">New username</label>
+        <input id="username" name="username" class="settings-input" type="text" value="{{ current_user.username }}" required minlength="3" autocomplete="username">
+      </div>
+      <div class="form-field">
+        <label for="username_password">Current password</label>
+        <input id="username_password" name="current_password" class="settings-input" type="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-scan btn-inline"><span class="btn-scan-label">Update username</span></button>
+    </form>
+
+    <form class="settings-form" method="POST" action="{{ url_for('settings_email') }}">
+      <h3 class="settings-subhead">Change email</h3>
+      <p class="settings-hint">Changing email requires re-verification via OTP on the new address.</p>
+      <div class="form-field">
+        <label for="email">New email</label>
+        <input id="email" name="email" class="settings-input" type="email" value="{{ current_user.email }}" required autocomplete="email">
+      </div>
+      <div class="form-field">
+        <label for="email_password">Current password</label>
+        <input id="email_password" name="current_password" class="settings-input" type="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-scan btn-inline"><span class="btn-scan-label">Update email</span></button>
+    </form>
+
+    <form class="settings-form" method="POST" action="{{ url_for('settings_password') }}">
+      <h3 class="settings-subhead">Change password</h3>
+      <div class="form-field">
+        <label for="current_password_pw">Current password</label>
+        <input id="current_password_pw" name="current_password" class="settings-input" type="password" required autocomplete="current-password">
+      </div>
+      <div class="form-field">
+        <label for="new_password">New password</label>
+        <input id="new_password" name="new_password" class="settings-input" type="password" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="form-field">
+        <label for="confirm_password">Confirm new password</label>
+        <input id="confirm_password" name="confirm_password" class="settings-input" type="password" required minlength="6" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn-scan btn-inline"><span class="btn-scan-label">Update password</span></button>
+    </form>
+  </section>
+
+  <section class="panel settings-section" id="appearance">
+    <h2 class="panel-title">Appearance</h2>
+    <form method="POST" action="{{ url_for('settings_appearance') }}" id="appearanceForm">
+      <input type="hidden" name="theme" id="themeInput" value="{{ theme }}">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-title">Color theme</div>
+          <p class="settings-hint">Dark burgundy is the default. Light mode swaps site-wide CSS variables.</p>
+        </div>
+        <div class="history-mode-toggle settings-theme-toggle" role="group" aria-label="Theme">
+          <span class="history-mode-label" id="themeDarkLabel">DARK</span>
+          <button
+            type="button"
+            class="history-mode-switch"
+            id="themeSwitch"
+            role="switch"
+            aria-checked="{{ 'true' if theme == 'light' else 'false' }}"
+            aria-labelledby="themeDarkLabel themeLightLabel"
+            data-theme-switch
+          >
+            <span class="history-mode-thumb" aria-hidden="true"></span>
+          </button>
+          <span class="history-mode-label" id="themeLightLabel">LIGHT</span>
+        </div>
+      </div>
+      <button type="submit" class="btn-scan btn-inline"><span class="btn-scan-label">Save appearance</span></button>
+    </form>
+  </section>
+
+  <section class="panel settings-section" id="language">
+    <h2 class="panel-title">Language</h2>
+    <div class="form-field">
+      <label for="language">Interface language</label>
+      <select id="language" class="settings-input settings-select" aria-describedby="langNote">
+        <option value="en" selected>English</option>
+        <option value="ar" disabled>Arabic — Coming soon</option>
+      </select>
+      <p class="settings-hint" id="langNote">Arabic will be added later; English is the only active option for now.</p>
+    </div>
+  </section>
+
+  <section class="panel settings-section" id="notifications">
+    <h2 class="panel-title">Notifications</h2>
+    <form method="POST" action="{{ url_for('settings_notifications') }}" id="notifyForm">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-title">Email me when a scan completes</div>
+          <p class="settings-hint">Preference is saved to your account. Sending logic is not wired yet.</p>
+        </div>
+        <div class="history-mode-toggle" role="group" aria-label="Scan email notifications">
+          <span class="history-mode-label">OFF</span>
+          <button
+            type="button"
+            class="history-mode-switch"
+            id="notifySwitch"
+            role="switch"
+            aria-checked="{{ 'true' if notify_scan_email else 'false' }}"
+            data-notify-switch
+          >
+            <span class="history-mode-thumb" aria-hidden="true"></span>
+          </button>
+          <span class="history-mode-label">ON</span>
+        </div>
+      </div>
+      <input type="hidden" name="notify_scan_email" id="notifyInput" value="{{ '1' if notify_scan_email else '0' }}">
+      <button type="submit" class="btn-scan btn-inline"><span class="btn-scan-label">Save notifications</span></button>
+    </form>
+  </section>
+
+  <section class="panel settings-section settings-danger" id="delete-account">
+    <h2 class="panel-title">Delete account</h2>
+    <p class="settings-danger-warning">
+      This permanently deletes your account and all URL, domain, and DNS scan history.
+      This action cannot be undone.
+    </p>
+    <form class="settings-form" method="POST" action="{{ url_for('settings_delete') }}" onsubmit="return confirm('Permanently delete your account and all scans? This cannot be undone.');">
+      <div class="form-field">
+        <label for="confirm_text">Type your username ({{ current_user.username }}) or DELETE to confirm</label>
+        <input id="confirm_text" name="confirm_text" class="settings-input" type="text" required autocomplete="off">
+      </div>
+      <div class="form-field">
+        <label for="delete_password">Current password</label>
+        <input id="delete_password" name="current_password" class="settings-input" type="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-danger-solid"><span>Delete my account</span></button>
+    </form>
+  </section>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var themeSwitch = document.getElementById("themeSwitch");
+  var themeInput = document.getElementById("themeInput");
+  var notifySwitch = document.getElementById("notifySwitch");
+  var notifyInput = document.getElementById("notifyInput");
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("cyberscan-theme", theme); } catch (e) {}
+    if (themeInput) themeInput.value = theme;
+    if (themeSwitch) {
+      themeSwitch.setAttribute("aria-checked", theme === "light" ? "true" : "false");
+    }
+  }
+
+  if (themeSwitch) {
+    themeSwitch.addEventListener("click", function () {
+      var next = themeSwitch.getAttribute("aria-checked") === "true" ? "dark" : "light";
+      applyTheme(next);
+    });
+  }
+
+  if (notifySwitch && notifyInput) {
+    notifySwitch.addEventListener("click", function () {
+      var on = notifySwitch.getAttribute("aria-checked") !== "true";
+      notifySwitch.setAttribute("aria-checked", on ? "true" : "false");
+      notifyInput.value = on ? "1" : "0";
+    });
+  }
+})();
+</script>
+{% endblock %}

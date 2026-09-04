@@ -26,6 +26,14 @@ class User(UserMixin, db.Model):
     otp_hash = db.Column(db.String(255), nullable=True)
     otp_expires_at = db.Column(db.DateTime, nullable=True)
     otp_last_sent_at = db.Column(db.DateTime, nullable=True)
+    # User preferences (Settings page)
+    theme = db.Column(db.String(16), nullable=False, default="dark", server_default="dark")
+    notify_scan_email = db.Column(
+        db.Boolean,
+        default=False,
+        server_default=db.false(),
+        nullable=False,
+    )
 
     url_scans = db.relationship("UrlScan", back_populates="user", lazy=True)
     domain_scans = db.relationship("DomainScan", back_populates="user", lazy=True)

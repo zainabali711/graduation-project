@@ -38,6 +38,29 @@
   --sidebar-w: 260px;
 }
 
+html[data-theme="light"] {
+  --bg-primary: #f7f1f3;
+  --bg-deep: #ffffff;
+  --bg-mid: #f3e8ec;
+  --bg-edge: #e8d5db;
+  --bg-card: #ffffff;
+  --bg-elevated: #faf6f7;
+
+  --accent-teal: #8B1A3D;
+  --accent-cyan: #8B1A3D;
+  --accent-deep: #40070D;
+  --glow-teal: #8B1A3D;
+  --accent-gradient: linear-gradient(135deg, #8B1A3D 0%, #40070D 100%);
+  --page-gradient: linear-gradient(160deg, #faf7f8 0%, #f3e8ec 45%, #efe0e5 100%);
+
+  --text-primary: #1a0a10;
+  --text-secondary: #3d2a32;
+  --text-muted: #6b5560;
+
+  --border-teal: rgba(139, 26, 61, 0.28);
+  --glow-effect: 0 0 16px rgba(139, 26, 61, 0.2);
+}
+
 /* ----- Reset ----- */
 *,
 *::before,
@@ -2321,4 +2344,175 @@ textarea:focus,
 
 .dns-loot-table {
   margin-top: 0.75rem;
+}
+
+/* ----- Settings page ----- */
+.settings-page .settings-section {
+  margin-bottom: 1.25rem;
+}
+
+.settings-flashes {
+  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.settings-flash {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+}
+
+.settings-flash-success {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+}
+
+.settings-flash-error {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+}
+
+html[data-theme="light"] .settings-flash-success {
+  color: #047857;
+}
+
+html[data-theme="light"] .settings-flash-error {
+  color: #b91c1c;
+}
+
+.settings-form {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(139, 26, 61, 0.18);
+}
+
+.settings-form:first-of-type {
+  margin-top: 0.35rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.settings-subhead {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #e8c4ce;
+}
+
+html[data-theme="light"] .settings-subhead {
+  color: #8B1A3D;
+}
+
+.settings-hint {
+  margin: 0 0 0.85rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.settings-input,
+.settings-select {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(139, 26, 61, 0.35);
+  background: rgba(13, 17, 23, 0.65);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+html[data-theme="light"] .settings-input,
+html[data-theme="light"] .settings-select {
+  background: #fff;
+  border-color: rgba(139, 26, 61, 0.28);
+}
+
+.settings-input:focus,
+.settings-select:focus {
+  border-color: rgba(139, 26, 61, 0.7);
+  box-shadow: 0 0 0 3px rgba(139, 26, 61, 0.15);
+}
+
+.settings-select option:disabled {
+  color: #8B949E;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.settings-row-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.settings-danger {
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.12);
+}
+
+.settings-danger .panel-title {
+  color: #fecaca;
+}
+
+html[data-theme="light"] .settings-danger .panel-title {
+  color: #b91c1c;
+}
+
+.settings-danger-warning {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fecaca;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+html[data-theme="light"] .settings-danger-warning {
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.btn-danger-solid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: #fff;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(220, 38, 38, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-danger-solid:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(220, 38, 38, 0.5);
+}
+
+.site-flashes {
+  max-width: 960px;
+  margin: 0 auto 1rem;
+  padding: 0 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+html[data-theme="light"] .circuit-bg {
+  background-image: none;
 }

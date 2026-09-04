@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env", override=True)
 
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
-from flask_login import LoginManager, current_user, login_user, logout_user
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask_login import LoginManager, current_user, login_required, login_user, logout_user
 from flask_mail import Mail
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -147,7 +147,7 @@ def _reject_unverified_sessions():
 
 
 def _ensure_user_otp_columns() -> None:
-    """Add OTP columns on existing Postgres/SQLite DBs (create_all won't alter)."""
+    """Add OTP / settings columns on existing Postgres/SQLite DBs (create_all won't alter)."""
     from sqlalchemy import inspect, text
 
     try:
@@ -159,12 +159,21 @@ def _ensure_user_otp_columns() -> None:
         auth_log(f"otp_schema_inspect_fail detail={exc}")
         return
 
+    dialect = db.engine.dialect.name
+    if dialect == "postgresql":
+        bool_false = "BOOLEAN DEFAULT FALSE NOT NULL"
+        theme_col = "VARCHAR(16) DEFAULT 'dark' NOT NULL"
+    else:
+        bool_false = "BOOLEAN DEFAULT 0 NOT NULL"
+        theme_col = "VARCHAR(16) DEFAULT 'dark' NOT NULL"
+
     needed = {
         "otp_hash": "VARCHAR(255)",
         "otp_expires_at": "TIMESTAMP",
         "otp_last_sent_at": "TIMESTAMP",
+        "theme": theme_col,
+        "notify_scan_email": bool_false,
     }
-    dialect = db.engine.dialect.name
     for name, sql_type in needed.items():
         if name in existing:
             continue
@@ -176,15 +185,25 @@ def _ensure_user_otp_columns() -> None:
             else:
                 db.session.execute(text(f"ALTER TABLE users ADD COLUMN {name} {sql_type}"))
             db.session.commit()
-            auth_log(f"otp_schema_added column={name}")
+            auth_log(f"user_schema_added column={name}")
         except Exception as exc:
             db.session.rollback()
-            auth_log(f"otp_schema_add_fail column={name} detail={exc}")
+            auth_log(f"user_schema_add_fail column={name} detail={exc}")
 
 
 with app.app_context():
     db.create_all()
     _ensure_user_otp_columns()
+
+
+@app.context_processor
+def _inject_user_theme():
+    theme = "dark"
+    if current_user.is_authenticated:
+        theme = getattr(current_user, "theme", None) or "dark"
+        if theme not in ("dark", "light"):
+            theme = "dark"
+    return {"user_theme": theme}
 
 
 def _load_metrics():
@@ -996,6 +1015,176 @@ def verify_email(token):
 @app.route("/logout")
 def logout():
     logout_user()
+    return redirect(url_for("index"))
+
+
+def _settings_page(**extra):
+    metrics = _load_metrics()
+    return render_template(
+        "settings.html",
+        accuracy=metrics.get("accuracy", 0),
+        active_page="settings",
+        theme=getattr(current_user, "theme", None) or "dark",
+        notify_scan_email=bool(getattr(current_user, "notify_scan_email", False)),
+        **extra,
+    )
+
+
+def _require_current_password(password: str) -> str | None:
+    if not password:
+        return "Current password is required."
+    if not check_password_hash(current_user.password, password):
+        return "Current password is incorrect."
+    return None
+
+
+@app.route("/settings")
+@login_required
+def settings():
+    return _settings_page()
+
+
+@app.route("/settings/username", methods=["POST"])
+@login_required
+def settings_username():
+    new_username = (request.form.get("username") or "").strip()
+    current_password = request.form.get("current_password") or ""
+    err = _require_current_password(current_password)
+    if err:
+        flash(err, "error")
+        return redirect(url_for("settings"))
+    if not new_username or len(new_username) < 3:
+        flash("Username must be at least 3 characters.", "error")
+        return redirect(url_for("settings"))
+    if new_username == current_user.username:
+        flash("That is already your username.", "error")
+        return redirect(url_for("settings"))
+    taken = User.query.filter(
+        User.username == new_username, User.id != current_user.id
+    ).first()
+    if taken:
+        flash("That username is already taken.", "error")
+        return redirect(url_for("settings"))
+    current_user.username = new_username
+    db.session.commit()
+    flash("Username updated.", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/email", methods=["POST"])
+@login_required
+def settings_email():
+    new_email = (request.form.get("email") or "").strip().lower()
+    current_password = request.form.get("current_password") or ""
+    err = _require_current_password(current_password)
+    if err:
+        flash(err, "error")
+        return redirect(url_for("settings"))
+    if not new_email or "@" not in new_email:
+        flash("Enter a valid email address.", "error")
+        return redirect(url_for("settings"))
+    if new_email == (current_user.email or "").lower():
+        flash("That is already your email.", "error")
+        return redirect(url_for("settings"))
+    taken = User.query.filter(
+        User.email == new_email, User.id != current_user.id
+    ).first()
+    if taken:
+        flash("That email is already in use.", "error")
+        return redirect(url_for("settings"))
+    if not mail_configured():
+        flash("Email is not configured. Add BREVO_API_KEY on Render.", "error")
+        return redirect(url_for("settings"))
+
+    current_user.email = new_email
+    current_user.is_verified = False
+    db.session.commit()
+    user_id = current_user.id
+    logout_user()
+    session["pending_user_id"] = user_id
+    user = db.session.get(User, user_id)
+    _issue_and_queue_otp(user, force=True)
+    flash(
+        "Email updated. Enter the verification code sent to your new address.",
+        "success",
+    )
+    return _auth_page(
+        auth_mode="otp",
+        success="Enter the verification code sent to your new email.",
+        masked_email=mask_email(new_email),
+        resend_cooldown=resend_cooldown_remaining(user),
+    )
+
+
+@app.route("/settings/password", methods=["POST"])
+@login_required
+def settings_password():
+    current_password = request.form.get("current_password") or ""
+    new_password = request.form.get("new_password") or ""
+    confirm = request.form.get("confirm_password") or ""
+    err = _require_current_password(current_password)
+    if err:
+        flash(err, "error")
+        return redirect(url_for("settings"))
+    if len(new_password) < 6:
+        flash("New password must be at least 6 characters.", "error")
+        return redirect(url_for("settings"))
+    if new_password != confirm:
+        flash("New password and confirmation do not match.", "error")
+        return redirect(url_for("settings"))
+    current_user.password = generate_password_hash(new_password)
+    db.session.commit()
+    flash("Password updated.", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/appearance", methods=["POST"])
+@login_required
+def settings_appearance():
+    theme = (request.form.get("theme") or "dark").strip().lower()
+    if theme not in ("dark", "light"):
+        theme = "dark"
+    current_user.theme = theme
+    db.session.commit()
+    flash("Appearance updated.", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/notifications", methods=["POST"])
+@login_required
+def settings_notifications():
+    enabled = request.form.get("notify_scan_email") in ("1", "true", "on", "yes")
+    current_user.notify_scan_email = enabled
+    db.session.commit()
+    flash("Notification preference saved.", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/delete", methods=["POST"])
+@login_required
+def settings_delete():
+    confirm = (request.form.get("confirm_text") or "").strip()
+    current_password = request.form.get("current_password") or ""
+    err = _require_current_password(current_password)
+    if err:
+        flash(err, "error")
+        return redirect(url_for("settings"))
+    expected_user = current_user.username
+    if confirm != expected_user and confirm.upper() != "DELETE":
+        flash('Type your username or "DELETE" to confirm account deletion.', "error")
+        return redirect(url_for("settings"))
+
+    user_id = current_user.id
+    username = current_user.username
+    UrlScan.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    DomainScan.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    DnsScan.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    user = db.session.get(User, user_id)
+    logout_user()
+    if user is not None:
+        db.session.delete(user)
+    db.session.commit()
+    flash(f"Account '{username}' and all associated scans were permanently deleted.", "success")
     return redirect(url_for("index"))
 
 
