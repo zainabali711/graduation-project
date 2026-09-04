@@ -438,6 +438,8 @@ def history():
     metrics = _load_metrics()
     recent_scans = []
     recent_domains = []
+    recent_dns = []
+    combined_history = []
 
     if current_user.is_authenticated:
         recent_scans = (
@@ -452,12 +454,61 @@ def history():
             .limit(50)
             .all()
         )
+        recent_dns = (
+            DnsScan.query.filter_by(user_id=current_user.id)
+            .order_by(DnsScan.scan_date.desc())
+            .limit(50)
+            .all()
+        )
+
+        for scan in recent_scans:
+            combined_history.append(
+                {
+                    "type": "URL",
+                    "type_key": "url",
+                    "target": scan.url,
+                    "result": scan.result,
+                    "detail": scan.risk_level or "—",
+                    "date": scan.scan_date,
+                }
+            )
+        for item in recent_domains:
+            ssl = item.ssl_status or "Could not verify"
+            combined_history.append(
+                {
+                    "type": "Domain",
+                    "type_key": "domain",
+                    "target": item.domain,
+                    "result": ssl,
+                    "detail": item.ip_address or item.country or "—",
+                    "date": item.scan_date,
+                }
+            )
+        for item in recent_dns:
+            combined_history.append(
+                {
+                    "type": "DNS",
+                    "type_key": "dns",
+                    "target": item.query_name,
+                    "result": item.result,
+                    "detail": item.risk_level or "—",
+                    "date": item.scan_date,
+                }
+            )
+
+        combined_history.sort(
+            key=lambda row: row["date"] or datetime.min,
+            reverse=True,
+        )
+        combined_history = combined_history[:100]
 
     return render_template(
         "history.html",
         accuracy=metrics.get("accuracy", 0),
         recent_scans=recent_scans,
         recent_domains=recent_domains,
+        recent_dns=recent_dns,
+        combined_history=combined_history,
         active_page="history",
         history_requires_login=not current_user.is_authenticated,
     )

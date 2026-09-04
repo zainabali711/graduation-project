@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initDomainForm();
   animateBars();
   initResultCharts();
+  initHistoryModeToggle();
   initHistoryTabs();
   initHistorySearch();
   initAuthUI();
@@ -219,13 +220,60 @@ function initResultCharts() {
   });
 }
 
+function initHistoryModeToggle() {
+  const page = document.querySelector(".history-page");
+  const switchBtn = document.querySelector("[data-history-mode-switch]");
+  const tabsShell = document.querySelector("[data-history-tabs-shell]");
+  if (!page || !switchBtn) return;
+
+  function setMode(mode) {
+    const custom = mode === "custom";
+    page.setAttribute("data-history-mode", custom ? "custom" : "all");
+    switchBtn.setAttribute("aria-checked", custom ? "true" : "false");
+    if (tabsShell) {
+      tabsShell.setAttribute("aria-hidden", custom ? "false" : "true");
+    }
+
+    const panels = document.querySelectorAll("[data-history-panel]");
+    if (!custom) {
+      panels.forEach(function (panel) {
+        panel.classList.toggle(
+          "active",
+          panel.getAttribute("data-history-panel") === "all"
+        );
+      });
+      return;
+    }
+
+    const activeTab = document.querySelector(".history-tab.active");
+    const target = (activeTab && activeTab.getAttribute("data-history-tab")) || "url";
+    panels.forEach(function (panel) {
+      panel.classList.toggle(
+        "active",
+        panel.getAttribute("data-history-panel") === target
+      );
+    });
+  }
+
+  switchBtn.addEventListener("click", function () {
+    const next =
+      page.getAttribute("data-history-mode") === "custom" ? "all" : "custom";
+    setMode(next);
+  });
+
+  setMode(page.getAttribute("data-history-mode") || "all");
+}
+
 function initHistoryTabs() {
   const tabs = document.querySelectorAll("[data-history-tab]");
   const panels = document.querySelectorAll("[data-history-panel]");
+  const page = document.querySelector(".history-page");
   if (!tabs.length || !panels.length) return;
 
   tabs.forEach(function (tab) {
     tab.addEventListener("click", function () {
+      if (page && page.getAttribute("data-history-mode") !== "custom") return;
+
       const target = tab.getAttribute("data-history-tab");
       tabs.forEach(function (t) {
         const active = t === tab;

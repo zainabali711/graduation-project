@@ -3,14 +3,31 @@
 {% block title %}History — CyberScan{% endblock %}
 
 {% block content %}
-<main class="page-shell">
+<main class="page-shell history-page" data-history-mode="all">
   <div class="history-toolbar">
     <div class="page-intro" style="margin-bottom:0;">
       <h1 class="page-title">History</h1>
-      <p class="page-desc">Saved URL scans and domain inspections from your account.</p>
+      <p class="page-desc">Saved URL, domain, and DNS scans from your account.</p>
     </div>
-    <div class="search-wrap">
-      <input type="search" id="historySearch" class="search-input" placeholder="Search history..." autocomplete="off">
+    <div class="history-toolbar-actions">
+      <div class="history-mode-toggle" role="group" aria-label="History view mode">
+        <span class="history-mode-label" id="historyModeAllLabel">ALL</span>
+        <button
+          type="button"
+          class="history-mode-switch"
+          id="historyModeSwitch"
+          role="switch"
+          aria-checked="false"
+          aria-labelledby="historyModeAllLabel historyModeCustomLabel"
+          data-history-mode-switch
+        >
+          <span class="history-mode-thumb" aria-hidden="true"></span>
+        </button>
+        <span class="history-mode-label" id="historyModeCustomLabel">CUSTOM</span>
+      </div>
+      <div class="search-wrap">
+        <input type="search" id="historySearch" class="search-input" placeholder="Search history..." autocomplete="off">
+      </div>
     </div>
   </div>
 
@@ -23,16 +40,71 @@
   </section>
   {% else %}
 
-  <div class="history-tabs" role="tablist">
-    <button type="button" class="history-tab active" data-history-tab="url" role="tab" aria-selected="true">
-      URL Scanner History
-    </button>
-    <button type="button" class="history-tab" data-history-tab="domain" role="tab" aria-selected="false">
-      Domain Inspector History
-    </button>
+  <div class="history-tabs-shell" data-history-tabs-shell aria-hidden="true">
+    <div class="history-tabs" role="tablist" aria-label="Filter by scan type">
+      <button type="button" class="history-tab active" data-history-tab="url" role="tab" aria-selected="true">
+        URL Scanner
+      </button>
+      <button type="button" class="history-tab" data-history-tab="domain" role="tab" aria-selected="false">
+        Domain Inspector
+      </button>
+      <button type="button" class="history-tab" data-history-tab="dns" role="tab" aria-selected="false">
+        DNS Scanner
+      </button>
+    </div>
   </div>
 
-  <section class="history-panel active" data-history-panel="url">
+  <section class="history-panel active" data-history-panel="all">
+    <div class="history-table-wrap">
+      {% if combined_history %}
+      <table class="history-table" id="allHistoryTable">
+        <thead>
+          <tr>
+            <th>Target</th>
+            <th>Type</th>
+            <th>Result</th>
+            <th>Detail</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in combined_history %}
+          <tr>
+            <td class="url-cell mono" title="{{ item.target }}">{{ item.target }}</td>
+            <td>
+              <span class="history-type-badge history-type-{{ item.type_key }}">{{ item.type }}</span>
+            </td>
+            <td>
+              {% if item.type_key == 'domain' %}
+                {% if item.result == 'Valid' %}
+                <span class="tag tag-green">{{ item.result }}</span>
+                {% else %}
+                <span class="tag tag-yellow">{{ item.result }}</span>
+                {% endif %}
+              {% else %}
+                <span class="tag {{ 'tag-red' if item.result == 'Malicious' else 'tag-green' }}">
+                  {{ item.result }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="mono" style="color:var(--text-muted);">{{ item.detail }}</td>
+            <td class="mono" style="color:var(--text-muted);">
+              {{ item.date.strftime('%Y-%m-%d %H:%M') if item.date else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <p>No scans saved yet. Run a URL, domain, or DNS scan while logged in to build history.</p>
+        <a href="/scan" class="btn-scan btn-inline"><span class="btn-scan-label">Scan URL</span></a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="history-panel" data-history-panel="url">
     <div class="history-table-wrap">
       {% if recent_scans %}
       <table class="history-table" id="urlHistoryTable">
@@ -111,6 +183,52 @@
       <div class="empty-state">
         <p>No domain inspections saved yet. Inspect a domain while logged in to build this history.</p>
         <a href="/domain" class="btn-scan btn-inline"><span class="btn-scan-label">Inspect Domain</span></a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="history-panel" data-history-panel="dns">
+    <div class="history-table-wrap">
+      {% if recent_dns %}
+      <table class="history-table" id="dnsHistoryTable">
+        <thead>
+          <tr>
+            <th>Query name</th>
+            <th>Result</th>
+            <th>Risk Level</th>
+            <th>Confidence</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in recent_dns %}
+          <tr>
+            <td class="url-cell mono" title="{{ item.query_name }}">{{ item.query_name }}</td>
+            <td>
+              <span class="tag {{ 'tag-red' if item.result == 'Malicious' else 'tag-green' }}">
+                {{ item.result }}
+              </span>
+            </td>
+            <td>
+              <span class="risk-chip risk-{{ (item.risk_level or 'Safe')|lower }}" style="margin:0;">
+                {{ item.risk_level or 'Safe' }}
+              </span>
+            </td>
+            <td class="mono" style="color:var(--text-muted);">
+              {{ '%.1f'|format(item.confidence or 0) }}%
+            </td>
+            <td class="mono" style="color:var(--text-muted);">
+              {{ item.scan_date.strftime('%Y-%m-%d %H:%M') if item.scan_date else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">
+        <p>No DNS scans saved yet. Classify a query name while logged in to build this history.</p>
+        <a href="/dns-scan" class="btn-scan btn-inline"><span class="btn-scan-label">Scan DNS Query</span></a>
       </div>
       {% endif %}
     </div>
