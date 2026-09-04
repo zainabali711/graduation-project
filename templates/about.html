@@ -6,16 +6,18 @@
 <main class="page-shell">
   <div class="page-intro">
     <h1 class="page-title">About CyberScan</h1>
-    <p class="page-desc">Detection of Malicious DNS Queries Using Machine Learning Techniques.</p>
+    <p class="page-desc">A multi-service detection workspace for URLs, domains, and DNS query names.</p>
   </div>
 
   <div class="about-grid">
     <section class="panel">
       <h2 class="panel-title">Project</h2>
       <p class="about-text">
-        CyberScan classifies URLs as <strong>Malicious</strong> or <strong>Benign</strong>
-        using lexical + reputation features, a Soft Voting ensemble of Random Forest and calibrated SVM,
-        ML guards (allowlist / 95% threshold), and VirusTotal for final correction.
+        CyberScan is a graduation project that combines <strong>three complementary services</strong>:
+        an ML + VirusTotal <strong>URL Scanner</strong>, a WHOIS/network <strong>Domain Inspector</strong>,
+        and an offline hybrid-ML <strong>DNS Query Scanner</strong> trained on synthetic query-name data.
+        Together they help students and researchers explore lexical detection, enrichment lookups,
+        and the limits of synthetic DNS datasets — with clear verdicts and honest caveats where needed.
       </p>
       <div class="info-rows">
         <div class="info-row"><span>Student</span><span>Zainab Ali Saleem Al-Hattali</span></div>
@@ -26,18 +28,36 @@
 
     <section class="panel">
       <h2 class="panel-title">How it works</h2>
+      <p class="panel-desc">Each service has its own pipeline.</p>
+
+      <h3 class="about-subhead">URL Scanner</h3>
       <ol class="about-steps">
         <li>Extract lexical + brand/DNS/SSL/WHOIS reputation features</li>
         <li>Classify with Random Forest + calibrated SVM; apply allowlist and 95% threshold</li>
         <li>Combine probabilities via Soft Voting</li>
-        <li>Check reputation with VirusTotal</li>
-        <li>Correct ML false positives using engine consensus</li>
+        <li>Check reputation with VirusTotal and correct clear ML false positives</li>
+      </ol>
+
+      <h3 class="about-subhead">Domain Inspector</h3>
+      <ol class="about-steps">
+        <li>Resolve the domain to an IP address</li>
+        <li>Look up geolocation / organization signals</li>
+        <li>Check SSL certificate status</li>
+        <li>Surface WHOIS / registration details when available</li>
+      </ol>
+
+      <h3 class="about-subhead">DNS Query Scanner</h3>
+      <ol class="about-steps">
+        <li>Extract 18 lexical features from the typed DNS query name</li>
+        <li>Classify offline with a Soft Voting RF + SVM hybrid</li>
+        <li>Report verdict, confidence, and generalization warnings</li>
+        <li>Treat results as research signals — model trained on synthetic data (<a href="{{ url_for('dns_limitations') }}">limitations</a>)</li>
       </ol>
     </section>
 
     <section class="panel">
-      <h2 class="panel-title">Lexical features</h2>
-      <p class="panel-desc">28 features used by the hybrid model (lexical + reputation).</p>
+      <h2 class="panel-title">URL lexical features</h2>
+      <p class="panel-desc">28 features used by the URL hybrid model (lexical + reputation).</p>
       <div class="feature-tags">
         <span class="feature-tag mono">url_length</span>
         <span class="feature-tag mono">domain_length</span>
@@ -67,6 +87,29 @@
         <span class="feature-tag mono">domain_age_days</span>
         <span class="feature-tag mono">dns_resolves</span>
         <span class="feature-tag mono">ssl_valid</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">DNS query-name features</h2>
+      <p class="panel-desc">18 features derived from a single DNS query name string (train = predict).</p>
+      <div class="feature-tags">
+        {% for name in dns_feature_columns %}
+        <span class="feature-tag mono">{{ name }}</span>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Domain Inspector checks</h2>
+      <p class="panel-desc">Lookup signals — not ML classification features.</p>
+      <div class="feature-tags">
+        <span class="feature-tag mono">ip_address</span>
+        <span class="feature-tag mono">country</span>
+        <span class="feature-tag mono">organization</span>
+        <span class="feature-tag mono">ssl_status</span>
+        <span class="feature-tag mono">whois_details</span>
+        <span class="feature-tag mono">domain_age</span>
       </div>
     </section>
   </div>

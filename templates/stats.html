@@ -4,103 +4,220 @@
 
 {% block content %}
 {% set cm = confusion_matrix %}
+{% set dcm = dns_cm %}
 
 <main class="page-shell">
   <div class="page-intro">
     <h1 class="page-title">Model Performance</h1>
-    <p class="page-desc">Hybrid ensemble evaluation on the held-out test set.</p>
+    <p class="page-desc">Metrics for each CyberScan service — URL and DNS classifiers, plus Domain Inspector capabilities.</p>
   </div>
 
-  <div class="metrics-grid">
-    <article class="metric-card">
-      <div class="metric-label">Accuracy</div>
-      <div class="metric-value mono">{{ '%.2f'|format(accuracy) }}%</div>
-      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
-    </article>
-    <article class="metric-card">
-      <div class="metric-label">Precision</div>
-      <div class="metric-value mono">{{ '%.2f'|format(precision) }}%</div>
-      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
-    </article>
-    <article class="metric-card">
-      <div class="metric-label">Recall</div>
-      <div class="metric-value mono">{{ '%.2f'|format(recall) }}%</div>
-      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
-    </article>
-    <article class="metric-card">
-      <div class="metric-label">F1-Score</div>
-      <div class="metric-value mono">{{ '%.2f'|format(f1) }}%</div>
-      <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
-    </article>
-  </div>
+  {# ----- URL Detection Model ----- #}
+  <section class="stats-service-block" aria-labelledby="url-stats-title">
+    <div class="stats-service-head">
+      <h2 id="url-stats-title" class="stats-service-title">URL Detection Model</h2>
+      <p class="stats-service-desc">Hybrid RF + SVM ensemble on the held-out URL test set.</p>
+    </div>
 
-  <section class="panel stats-chart-card">
-    <h2 class="panel-title">Metric Comparison</h2>
-    <p class="panel-desc">Glowing performance profile of the hybrid model.</p>
-    <div class="metric-bars">
-      <div class="metric-bar-row">
-        <span>Accuracy</span>
-        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ accuracy }}"></div></div>
-        <span class="mono">{{ '%.2f'|format(accuracy) }}%</span>
+    <div class="metrics-grid">
+      <article class="metric-card">
+        <div class="metric-label">Accuracy</div>
+        <div class="metric-value mono">{{ '%.2f'|format(accuracy) }}%</div>
+        <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">Precision</div>
+        <div class="metric-value mono">{{ '%.2f'|format(precision) }}%</div>
+        <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">Recall</div>
+        <div class="metric-value mono">{{ '%.2f'|format(recall) }}%</div>
+        <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">F1-Score</div>
+        <div class="metric-value mono">{{ '%.2f'|format(f1) }}%</div>
+        <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
+      </article>
+    </div>
+
+    <section class="panel stats-chart-card">
+      <h3 class="panel-title">Metric Comparison</h3>
+      <p class="panel-desc">Performance profile of the URL hybrid model.</p>
+      <div class="metric-bars">
+        <div class="metric-bar-row">
+          <span>Accuracy</span>
+          <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ accuracy }}"></div></div>
+          <span class="mono">{{ '%.2f'|format(accuracy) }}%</span>
+        </div>
+        <div class="metric-bar-row">
+          <span>Precision</span>
+          <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ precision }}"></div></div>
+          <span class="mono">{{ '%.2f'|format(precision) }}%</span>
+        </div>
+        <div class="metric-bar-row">
+          <span>Recall</span>
+          <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ recall }}"></div></div>
+          <span class="mono">{{ '%.2f'|format(recall) }}%</span>
+        </div>
+        <div class="metric-bar-row">
+          <span>F1-Score</span>
+          <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ f1 }}"></div></div>
+          <span class="mono">{{ '%.2f'|format(f1) }}%</span>
+        </div>
       </div>
-      <div class="metric-bar-row">
-        <span>Precision</span>
-        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ precision }}"></div></div>
-        <span class="mono">{{ '%.2f'|format(precision) }}%</span>
-      </div>
-      <div class="metric-bar-row">
-        <span>Recall</span>
-        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ recall }}"></div></div>
-        <span class="mono">{{ '%.2f'|format(recall) }}%</span>
-      </div>
-      <div class="metric-bar-row">
-        <span>F1-Score</span>
-        <div class="metric-bar-track"><div class="metric-bar-fill" data-width="{{ f1 }}"></div></div>
-        <span class="mono">{{ '%.2f'|format(f1) }}%</span>
-      </div>
+    </section>
+
+    <div class="stats-info-grid">
+      <section class="panel">
+        <h3 class="panel-title">Confusion Matrix</h3>
+        <div class="cm-grid">
+          <div class="cm-corner"></div>
+          <div class="cm-header">Pred. Benign</div>
+          <div class="cm-header">Pred. Malicious</div>
+          <div class="cm-row-label">Actual Benign</div>
+          <div class="cm-cell tn">
+            <span class="cm-num mono">{{ '{:,}'.format(cm[0][0]) }}</span>
+            <span class="cm-label">True Negative</span>
+          </div>
+          <div class="cm-cell fp">
+            <span class="cm-num mono">{{ '{:,}'.format(cm[0][1]) }}</span>
+            <span class="cm-label">False Positive</span>
+          </div>
+          <div class="cm-row-label">Actual Malicious</div>
+          <div class="cm-cell fn">
+            <span class="cm-num mono">{{ '{:,}'.format(cm[1][0]) }}</span>
+            <span class="cm-label">False Negative</span>
+          </div>
+          <div class="cm-cell tp">
+            <span class="cm-num mono">{{ '{:,}'.format(cm[1][1]) }}</span>
+            <span class="cm-label">True Positive</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3 class="panel-title">Dataset &amp; Model Info</h3>
+        <div class="info-rows">
+          <div class="info-row"><span>Total URLs</span><span class="mono">{{ '{:,}'.format(total_urls) }}</span></div>
+          <div class="info-row"><span>Train / Test</span><span class="mono">{{ '{:,}'.format(train_samples) }} / {{ '{:,}'.format(test_samples) }}</span></div>
+          <div class="info-row"><span>Malicious / Benign</span><span class="mono">{{ '{:,}'.format(metrics.malicious_count) }} / {{ '{:,}'.format(metrics.benign_count) }}</span></div>
+          <div class="info-row"><span>Ensemble</span><span>{{ metrics.ensemble or 'Soft Voting (RF + SVM)' }}</span></div>
+          <div class="info-row"><span>Random Forest</span><span class="mono">100 trees · depth 15 · {{ metrics.rf_accuracy }}%</span></div>
+          <div class="info-row"><span>SVM (RBF, calibrated)</span><span class="mono">{{ metrics.svm_accuracy or metrics.lr_accuracy }}%</span></div>
+          <div class="info-row"><span>Features</span><span>{{ metrics.feature_count or 25 }} lexical features</span></div>
+        </div>
+      </section>
     </div>
   </section>
 
-  <div class="stats-info-grid">
-    <section class="panel">
-      <h2 class="panel-title">Confusion Matrix</h2>
-      <div class="cm-grid">
-        <div class="cm-corner"></div>
-        <div class="cm-header">Pred. Benign</div>
-        <div class="cm-header">Pred. Malicious</div>
-        <div class="cm-row-label">Actual Benign</div>
-        <div class="cm-cell tn">
-          <span class="cm-num mono">{{ '{:,}'.format(cm[0][0]) }}</span>
-          <span class="cm-label">True Negative</span>
-        </div>
-        <div class="cm-cell fp">
-          <span class="cm-num mono">{{ '{:,}'.format(cm[0][1]) }}</span>
-          <span class="cm-label">False Positive</span>
-        </div>
-        <div class="cm-row-label">Actual Malicious</div>
-        <div class="cm-cell fn">
-          <span class="cm-num mono">{{ '{:,}'.format(cm[1][0]) }}</span>
-          <span class="cm-label">False Negative</span>
-        </div>
-        <div class="cm-cell tp">
-          <span class="cm-num mono">{{ '{:,}'.format(cm[1][1]) }}</span>
-          <span class="cm-label">True Positive</span>
-        </div>
+  {# ----- DNS Detection Model ----- #}
+  <section class="stats-service-block" aria-labelledby="dns-stats-title">
+    <div class="stats-service-head">
+      <h2 id="dns-stats-title" class="stats-service-title">DNS Detection Model</h2>
+      <p class="stats-service-desc">Hybrid RF + SVM on DNS query names (offline, synthetic training data).</p>
+    </div>
+
+    <aside class="panel stats-caveat" role="note">
+      <h3 class="panel-title">Reliability caveat</h3>
+      <p class="about-text">
+        In-distribution accuracy looks near-perfect (~{{ '%.1f'|format(dns_metrics.accuracy) }}%),
+        but this is <strong>not</strong> a trustworthy real-world headline.
+        {{ dns_metrics.limitations_summary or dns_metrics.dataset_caveat }}
+      </p>
+      <div class="info-rows">
+        <div class="info-row"><span>Evaluation risk</span><span class="mono">{{ dns_metrics.risk_level or 'HIGH' }}</span></div>
+        <div class="info-row"><span>Length-only baseline</span><span class="mono">{{ '%.1f'|format(dns_metrics.length_only_baseline_accuracy) }}%</span></div>
+        <div class="info-row"><span>Mean LOTO malicious recall</span><span class="mono">{{ '%.1f'|format(dns_metrics.mean_loto_malicious_recall) }}%</span></div>
       </div>
-    </section>
+      <p class="panel-desc" style="margin-top:12px;">
+        <a href="{{ url_for('dns_limitations') }}">Read full DNS module limitations →</a>
+      </p>
+    </aside>
+
+    <div class="metrics-grid">
+      <article class="metric-card">
+        <div class="metric-label">Accuracy*</div>
+        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.accuracy) }}%</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">Precision*</div>
+        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.precision) }}%</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">Recall*</div>
+        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.recall) }}%</div>
+      </article>
+      <article class="metric-card">
+        <div class="metric-label">F1-Score*</div>
+        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.f1) }}%</div>
+      </article>
+    </div>
+    <p class="panel-desc">*In-distribution test metrics on synthetic Daumel data — interpret with the caveat above.</p>
+
+    <div class="stats-info-grid">
+      <section class="panel">
+        <h3 class="panel-title">DNS Confusion Matrix</h3>
+        <div class="cm-grid">
+          <div class="cm-corner"></div>
+          <div class="cm-header">Pred. Benign</div>
+          <div class="cm-header">Pred. Malicious</div>
+          <div class="cm-row-label">Actual Benign</div>
+          <div class="cm-cell tn">
+            <span class="cm-num mono">{{ '{:,}'.format(dcm[0][0]) }}</span>
+            <span class="cm-label">True Negative</span>
+          </div>
+          <div class="cm-cell fp">
+            <span class="cm-num mono">{{ '{:,}'.format(dcm[0][1]) }}</span>
+            <span class="cm-label">False Positive</span>
+          </div>
+          <div class="cm-row-label">Actual Malicious</div>
+          <div class="cm-cell fn">
+            <span class="cm-num mono">{{ '{:,}'.format(dcm[1][0]) }}</span>
+            <span class="cm-label">False Negative</span>
+          </div>
+          <div class="cm-cell tp">
+            <span class="cm-num mono">{{ '{:,}'.format(dcm[1][1]) }}</span>
+            <span class="cm-label">True Positive</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3 class="panel-title">DNS Dataset &amp; Model Info</h3>
+        <div class="info-rows">
+          <div class="info-row"><span>Dataset size</span><span class="mono">{{ '{:,}'.format(dns_metrics.dataset_size) }}</span></div>
+          <div class="info-row"><span>Train / Test</span><span class="mono">{{ '{:,}'.format(dns_metrics.train_samples) }} / {{ '{:,}'.format(dns_metrics.test_samples) }}</span></div>
+          <div class="info-row"><span>Ensemble</span><span>Soft Voting (RF + SVM)</span></div>
+          <div class="info-row"><span>Features</span><span>{{ dns_metrics.feature_count }} query-name features</span></div>
+          <div class="info-row"><span>Data note</span><span>Synthetic (Daumel)</span></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  {# ----- Domain Inspector ----- #}
+  <section class="stats-service-block" aria-labelledby="domain-stats-title">
+    <div class="stats-service-head">
+      <h2 id="domain-stats-title" class="stats-service-title">Domain Inspector</h2>
+      <p class="stats-service-desc">Network / WHOIS enrichment — not an ML classifier, so there is no accuracy / F1 score.</p>
+    </div>
 
     <section class="panel">
-      <h2 class="panel-title">Dataset &amp; Model Info</h2>
-      <div class="info-rows">
-        <div class="info-row"><span>Total URLs</span><span class="mono">{{ '{:,}'.format(total_urls) }}</span></div>
-        <div class="info-row"><span>Train / Test</span><span class="mono">{{ '{:,}'.format(train_samples) }} / {{ '{:,}'.format(test_samples) }}</span></div>
-        <div class="info-row"><span>Malicious / Benign</span><span class="mono">{{ '{:,}'.format(metrics.malicious_count) }} / {{ '{:,}'.format(metrics.benign_count) }}</span></div>
-        <div class="info-row"><span>Ensemble</span><span>{{ metrics.ensemble or 'Soft Voting (RF + SVM)' }}</span></div>
-        <div class="info-row"><span>Random Forest</span><span class="mono">100 trees · depth 15 · {{ metrics.rf_accuracy }}%</span></div>
-        <div class="info-row"><span>SVM (RBF, calibrated)</span><span class="mono">{{ metrics.svm_accuracy or metrics.lr_accuracy }}%</span></div>
-        <div class="info-row"><span>Features</span><span>{{ metrics.feature_count or 25 }} lexical features</span></div>
-      </div>
+      <h3 class="panel-title">What this service checks</h3>
+      <p class="about-text">
+        Domain Inspector resolves and enriches a domain with live lookup signals rather than predicting
+        malicious vs benign. Use it alongside the URL and DNS scanners for context.
+      </p>
+      <ul class="about-steps about-checks">
+        <li>IP address resolution</li>
+        <li>Country / geolocation</li>
+        <li>Organization (WHOIS / network)</li>
+        <li>SSL certificate validity</li>
+        <li>Domain registration / WHOIS details when available</li>
+      </ul>
     </section>
-  </div>
+  </section>
 </main>
 {% endblock %}

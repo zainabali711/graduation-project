@@ -119,6 +119,9 @@ login_manager.login_message_category = "error"
 METRICS_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "model", "saved", "metrics.json"
 )
+DNS_METRICS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "model", "saved", "dns_metrics.json"
+)
 
 
 @login_manager.user_loader
@@ -191,6 +194,63 @@ def _load_metrics():
             return json.load(f)
     except FileNotFoundError:
         return {"accuracy": 0, "precision": 0, "recall": 0, "f1": 0}
+
+
+def _pct(value) -> float:
+    """Normalize a metric that may be stored as 0–1 or already as percent."""
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return n * 100.0 if n <= 1.0 else n
+
+
+def _load_dns_metrics():
+    """Load DNS module metrics with honest evaluation caveats."""
+    empty = {
+        "accuracy": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": 0,
+        "dataset_size": 0,
+        "train_samples": 0,
+        "test_samples": 0,
+        "feature_count": 18,
+        "dataset_caveat": "",
+        "evaluation_limitations": {},
+        "confusion_matrix": [[0, 0], [0, 0]],
+        "feature_columns": [],
+    }
+    try:
+        with open(DNS_METRICS_PATH, encoding="utf-8") as f:
+            raw = json.load(f)
+    except FileNotFoundError:
+        return empty
+
+    limits = raw.get("evaluation_limitations") or {}
+    features = raw.get("feature_columns") or []
+    return {
+        "accuracy": round(_pct(raw.get("accuracy", 0)), 2),
+        "precision": round(_pct(raw.get("precision", 0)), 2),
+        "recall": round(_pct(raw.get("recall", 0)), 2),
+        "f1": round(_pct(raw.get("f1", 0)), 2),
+        "dataset_size": raw.get("dataset_size", 0),
+        "train_samples": raw.get("train_samples", 0),
+        "test_samples": raw.get("test_samples", 0),
+        "feature_count": len(features) or 18,
+        "dataset_caveat": raw.get("dataset_caveat", ""),
+        "evaluation_limitations": limits,
+        "confusion_matrix": raw.get("confusion_matrix", [[0, 0], [0, 0]]),
+        "feature_columns": features,
+        "length_only_baseline_accuracy": round(
+            _pct(limits.get("length_only_baseline_accuracy", 0)), 2
+        ),
+        "mean_loto_malicious_recall": round(
+            _pct(limits.get("mean_leave_one_tool_out_malicious_recall", 0)), 1
+        ),
+        "risk_level": limits.get("risk_level", "HIGH"),
+        "limitations_summary": limits.get("summary", ""),
+    }
 
 
 def _current_user_id():
@@ -605,6 +665,7 @@ def stats():
     # 80/20 split used in training
     train_samples = metrics.get("train_samples", int(total * 0.8) if total else 0)
     test_samples = metrics.get("test_samples", int(total * 0.2) if total else 0)
+    dns_metrics = _load_dns_metrics()
 
     return render_template(
         "stats.html",
@@ -617,16 +678,21 @@ def stats():
         total_urls=total,
         train_samples=train_samples,
         test_samples=test_samples,
+        dns_metrics=dns_metrics,
+        dns_cm=dns_metrics.get("confusion_matrix", [[0, 0], [0, 0]]),
         active_page="stats",
     )
 
 
 @app.route("/about")
 def about():
+    from model.dns_features import DNS_FEATURE_COLUMNS
+
     metrics = _load_metrics()
     return render_template(
         "about.html",
         accuracy=metrics.get("accuracy", 0),
+        dns_feature_columns=DNS_FEATURE_COLUMNS,
         active_page="about",
     )
 
