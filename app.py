@@ -41,9 +41,11 @@ app.secret_key = os.environ.get("SECRET_KEY", "url-shield-dev-secret-key")
 
 # Prefer DATABASE_URL (Supabase / any Postgres). Fall back to local SQLite for development.
 _database_url = (os.environ.get("DATABASE_URL") or "").strip()
-if _database_url.startswith("postgres://"):
-    # SQLAlchemy requires the postgresql:// scheme (some hosts still emit postgres://).
-    _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+# Pin the driver to psycopg2 (the one in requirements.txt). SQLAlchemy 2.1+ maps a bare
+# postgresql:// URL to psycopg 3, and some hosts still emit the legacy postgres:// scheme.
+_scheme, _sep, _rest = _database_url.partition("://")
+if _sep and _scheme.split("+", 1)[0] in ("postgres", "postgresql"):
+    _database_url = f"postgresql+psycopg2://{_rest}"
 
 if _database_url:
     # Supabase (and most hosted Postgres) require SSL from external hosts like Render.
