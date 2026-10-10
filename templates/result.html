@@ -2,10 +2,6 @@
 
 {% block title %}Detection Result — CyberScan{% endblock %}
 
-{% block head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-{% endblock %}
-
 {% block content %}
 {% set rf = model_votes.random_forest %}
 {% set lr = model_votes.svm if model_votes.svm is defined else model_votes.logistic_regression %}
@@ -32,7 +28,13 @@
       <h2 class="panel-title">Confidence</h2>
       <div class="donut-stage">
         <div class="donut-wrap {{ verdict_class }}">
-          <canvas id="probDonut" width="200" height="200"></canvas>
+          <div class="v2-verdict-art" aria-hidden="true">
+            <div class="v2-pedestal"></div>
+            <div class="v2-puck-shadow"></div>
+            <div class="v2-puck-wrap">
+              <div class="v2-puck" data-v2-glyph="{{ '!' if verdict_class == 'malicious' else '✓' }}" style="--p: {{ '%.1f'|format(center_pct) }}"></div>
+            </div>
+          </div>
           <div class="donut-center">
             <span class="donut-pct mono">{{ '%.0f'|format(center_pct) }}%</span>
             <span class="donut-label">{{ center_label }}</span>

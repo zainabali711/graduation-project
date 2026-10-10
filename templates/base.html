@@ -23,6 +23,14 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-v2.css') }}">
 </head>
 <body class="{% block body_class %}circuit-bg{% endblock %}">
+  <svg class="v2-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="v2BrandGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fb7185"/>
+        <stop offset="1" stop-color="#8B1A3D"/>
+      </linearGradient>
+    </defs>
+  </svg>
   <button
     type="button"
     id="navToggle"
@@ -39,12 +47,13 @@
     <a href="/" class="nav-brand">
       <svg class="brand-mark" viewBox="0 0 48 56" aria-hidden="true">
         <path
-          fill="rgba(139, 26, 61, 0.08)"
-          stroke="#8B1A3D"
-          stroke-width="2.2"
+          fill="url(#v2BrandGrad)"
+          stroke="#ffd1da"
+          stroke-width="2"
           stroke-linejoin="round"
           d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
         />
+        <path d="M16 28 l6 6 l11 -12" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <span class="brand-copy">
         <strong>CyberScan</strong>

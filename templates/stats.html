@@ -12,7 +12,7 @@
   </div>
 
   {# ----- URL Detection Model ----- #}
-  <section class="stats-service-block" aria-labelledby="url-stats-title">
+  <section class="stats-service-block v2-svc-url" aria-labelledby="url-stats-title">
     <div class="stats-service-head">
       <h2 id="url-stats-title" class="stats-service-title">URL Detection Model</h2>
     </div>
@@ -20,22 +20,30 @@
     <div class="metrics-grid">
       <article class="metric-card">
         <div class="metric-label">Accuracy</div>
-        <div class="metric-value mono">{{ '%.2f'|format(accuracy) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(accuracy) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(accuracy) }}%</div>
+        </div>
         <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
       </article>
       <article class="metric-card">
         <div class="metric-label">Precision</div>
-        <div class="metric-value mono">{{ '%.2f'|format(precision) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(precision) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(precision) }}%</div>
+        </div>
         <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
       </article>
       <article class="metric-card">
         <div class="metric-label">Recall</div>
-        <div class="metric-value mono">{{ '%.2f'|format(recall) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(recall) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(recall) }}%</div>
+        </div>
         <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
       </article>
       <article class="metric-card">
         <div class="metric-label">F1-Score</div>
-        <div class="metric-value mono">{{ '%.2f'|format(f1) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(f1) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(f1) }}%</div>
+        </div>
         <svg class="metric-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5M4 19h16M8 15v4M12 10v9M16 7v12"/></svg>
       </article>
     </div>
@@ -110,7 +118,7 @@
   </section>
 
   {# ----- DNS Detection Model ----- #}
-  <section class="stats-service-block" aria-labelledby="dns-stats-title">
+  <section class="stats-service-block v2-svc-dns" aria-labelledby="dns-stats-title">
     <div class="stats-service-head">
       <h2 id="dns-stats-title" class="stats-service-title">DNS Detection Model</h2>
     </div>
@@ -135,19 +143,27 @@
     <div class="metrics-grid">
       <article class="metric-card">
         <div class="metric-label">Accuracy*</div>
-        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.accuracy) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(dns_metrics.accuracy) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.accuracy) }}%</div>
+        </div>
       </article>
       <article class="metric-card">
         <div class="metric-label">Precision*</div>
-        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.precision) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(dns_metrics.precision) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.precision) }}%</div>
+        </div>
       </article>
       <article class="metric-card">
         <div class="metric-label">Recall*</div>
-        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.recall) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(dns_metrics.recall) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.recall) }}%</div>
+        </div>
       </article>
       <article class="metric-card">
         <div class="metric-label">F1-Score*</div>
-        <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.f1) }}%</div>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(dns_metrics.f1) }}">
+          <div class="metric-value mono">{{ '%.2f'|format(dns_metrics.f1) }}%</div>
+        </div>
       </article>
     </div>
 
@@ -193,7 +209,7 @@
   </section>
 
   {# ----- Domain Inspector ----- #}
-  <section class="stats-service-block" aria-labelledby="domain-stats-title">
+  <section class="stats-service-block v2-svc-domain" aria-labelledby="domain-stats-title">
     <div class="stats-service-head">
       <h2 id="domain-stats-title" class="stats-service-title">Domain Inspector</h2>
     </div>

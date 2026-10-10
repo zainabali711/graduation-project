@@ -3,17 +3,15 @@
 {% block title %}DNS Query Scanner — CyberScan{% endblock %}
 
 {% block content %}
-<main class="page-shell landing dns-scan-page">
+<main class="page-shell landing dns-scan-page v2-svc-dns" data-v2-scene-host>
   <div class="landing-brand">
-    <svg class="landing-logo" viewBox="0 0 48 56" aria-hidden="true">
-      <path
-        fill="rgba(139, 26, 61, 0.08)"
-        stroke="#8B1A3D"
-        stroke-width="2.2"
-        stroke-linejoin="round"
-        d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
-      />
-    </svg>
+    <div class="landing-logo v2-scene v2-scene--logo" aria-hidden="true">
+      <svg class="v2-scene-fallback" viewBox="0 0 48 56">
+        <path fill="url(#v2BrandGrad)" stroke="#ffd1da" stroke-width="2" stroke-linejoin="round" d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"/>
+        <path d="M16 28 l6 6 l11 -12" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <canvas class="v2-scene-canvas" data-v2-scene="logo" data-v2-rings="dns" data-v2-packets="16" data-v2-stars="off"></canvas>
+    </div>
     <h1 class="landing-brand-name">DNS Query Scanner<em>Offline ML · Synthetic data</em></h1>
   </div>
 
@@ -56,7 +54,7 @@
       {% for ex in examples %}
       <button
         type="button"
-        class="dns-example-chip"
+        class="dns-example-chip dns-example-chip--{{ ex.expected_label|lower }}"
         data-query="{{ ex.query }}"
         title="{{ ex.note }}"
       >

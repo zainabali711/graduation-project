@@ -11,7 +11,7 @@
   {% if welcome_message %}
   <p class="elite-welcome" role="status">{{ welcome_message }}</p>
   {% endif %}
-  <header class="elite-hero">
+  <header class="elite-hero" data-v2-scene-host>
     <div class="elite-hero-copy">
       <h1 class="elite-brand">CyberScan <span>Elite</span></h1>
       <p class="elite-lead">
@@ -21,24 +21,12 @@
     </div>
 
     <div class="elite-hero-visual" aria-hidden="true">
-      <div class="elite-radar">
-        <div class="elite-radar-glow"></div>
-        <div class="elite-radar-ticks"></div>
-        <div class="elite-radar-ring"></div>
-        <div class="elite-radar-ring elite-radar-ring--mid"></div>
-        <div class="elite-radar-ring elite-radar-ring--inner"></div>
-        <div class="elite-radar-sweep"></div>
-        <div class="elite-radar-shield">
-          <svg viewBox="0 0 48 56" fill="none">
-            <path
-              fill="rgba(139, 26, 61, 0.14)"
-              stroke="#8B1A3D"
-              stroke-width="2.2"
-              stroke-linejoin="round"
-              d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"
-            />
-          </svg>
-        </div>
+      <div class="v2-scene v2-scene--hero">
+        <svg class="v2-scene-fallback" viewBox="0 0 48 56">
+          <path fill="url(#v2BrandGrad)" stroke="#ffd1da" stroke-width="2" stroke-linejoin="round" d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"/>
+          <path d="M16 28 l6 6 l11 -12" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <canvas class="v2-scene-canvas" data-v2-scene="hero" data-v2-rings="url,domain,dns"></canvas>
       </div>
     </div>
   </header>
@@ -159,6 +147,7 @@
         <h3>Decide</h3>
         <p>You get a clear Safe / Malicious result with confidence.</p>
       </div>
+      <div class="v2-track" aria-hidden="true"><span class="v2-packet"></span></div>
     </div>
   </section>
 
@@ -169,19 +158,27 @@
     </div>
     <div class="elite-stats">
       <div class="elite-stat">
-        <span class="elite-stat-value" data-count="{{ '%.1f'|format(accuracy|float) }}" data-suffix="%">0%</span>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(accuracy|float) }}">
+          <span class="elite-stat-value" data-count="{{ '%.1f'|format(accuracy|float) }}" data-suffix="%">0%</span>
+        </div>
         <span class="elite-stat-label">Accuracy</span>
       </div>
       <div class="elite-stat">
-        <span class="elite-stat-value" data-count="{{ '%.1f'|format(precision|float) }}" data-suffix="%">0%</span>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(precision|float) }}">
+          <span class="elite-stat-value" data-count="{{ '%.1f'|format(precision|float) }}" data-suffix="%">0%</span>
+        </div>
         <span class="elite-stat-label">Precision</span>
       </div>
       <div class="elite-stat">
-        <span class="elite-stat-value" data-count="{{ '%.1f'|format(recall|float) }}" data-suffix="%">0%</span>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(recall|float) }}">
+          <span class="elite-stat-value" data-count="{{ '%.1f'|format(recall|float) }}" data-suffix="%">0%</span>
+        </div>
         <span class="elite-stat-label">Recall</span>
       </div>
       <div class="elite-stat">
-        <span class="elite-stat-value" data-count="{{ '%.1f'|format(f1|float) }}" data-suffix="%">0%</span>
+        <div class="v2-ring" style="--v: {{ '%.1f'|format(f1|float) }}">
+          <span class="elite-stat-value" data-count="{{ '%.1f'|format(f1|float) }}" data-suffix="%">0%</span>
+        </div>
         <span class="elite-stat-label">F1 Score</span>
       </div>
     </div>
@@ -220,7 +217,7 @@
           {% for item in recent_items %}
           <tr>
             <td class="elite-mono" title="{{ item.target }}">{{ item.target }}</td>
-            <td><span class="elite-tag elite-tag-type">{{ item.type }}</span></td>
+            <td><span class="elite-tag elite-tag-type elite-tag-type--{{ item.type|lower }}">{{ item.type }}</span></td>
             <td>
               {% if item.type == 'URL' %}
                 <span class="elite-tag {{ 'elite-tag-bad' if item.result == 'Malicious' else 'elite-tag-safe' }}">{{ item.result }}</span>
