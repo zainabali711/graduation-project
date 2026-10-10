@@ -1062,22 +1062,11 @@ html[data-theme] .home-elite .elite-welcome::before {
   box-shadow: 0 0 10px rgba(194, 51, 95, 0.5);
 }
 
-/* Stacked at every width: the scene on top, the copy centred beneath it. */
 @media (min-width: 861px) {
   html[data-theme] .home-elite .elite-hero {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    min-height: 0;
-    padding-top: 0;
-    text-align: center;
-  }
-
-  html[data-theme] .home-elite .elite-hero-visual {
-    order: -1;
-  }
-
-  html[data-theme] .home-elite .elite-lead {
-    margin-inline: auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+    gap: 2rem;
+    min-height: min(82vh, 720px);
   }
 }
 
@@ -1134,11 +1123,15 @@ html[data-theme] .v2-scene--hero {
   height: clamp(380px, 62vh, 600px);
 }
 
+/* The hero stage spills into the column gap and the page margin (never over
+   the copy), and its negative block margins keep the hero's height. */
 @media (min-width: 861px) {
   html[data-theme] .v2-scene--hero {
-    --v2-zoom: 1.05;
-    height: clamp(420px, 64vh, 720px);
-    margin-bottom: -1.75rem;
+    --v2-zoom: 1.1;
+    --v2-hero-bleed: clamp(0px, (100vw - 1180px) / 2 - 1.25rem, 160px);
+    width: calc(100% + 1.5rem + var(--v2-hero-bleed));
+    height: clamp(480px, 84vh, 780px);
+    margin: -3rem calc(-1 * var(--v2-hero-bleed)) -3rem -1.5rem;
   }
 }
 
