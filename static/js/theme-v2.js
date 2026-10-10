@@ -551,13 +551,15 @@
     ".metric-card",
     ".domain-info-card",
     ".feature-chip",
-    ".auth-elite-card"
+    ".auth-elite-card",
+    ".admin-stat-card",
+    ".admin-login-card"
   ].join(",");
 
   function initTilt() {
     if (!finePointer || reduceMotion) return;
     document.querySelectorAll(TILT_SELECTOR).forEach(function (el) {
-      var max = el.classList.contains("auth-elite-card") ? 4 : 9;
+      var max = el.matches(".auth-elite-card, .admin-login-card") ? 4 : 9;
       el.classList.add("v2-tilt");
       el.addEventListener("pointermove", function (e) {
         var r = el.getBoundingClientRect();
@@ -592,7 +594,10 @@
     ".home-elite .elite-svc",
     ".home-elite .elite-steps",
     ".home-elite .elite-stat",
-    ".home-elite .elite-table-wrap"
+    ".home-elite .elite-table-wrap",
+    ".admin-stat-card",
+    ".admin-ratio-card",
+    ".admin-main .admin-table-wrap"
   ].join(",");
 
   function initReveal() {

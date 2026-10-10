@@ -1,18 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>One-time Admin Setup — CyberScan</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  {% include "admin/_theme_head.html" %}
 </head>
-<body class="admin-body">
+<body class="admin-body circuit-bg">
+  {% include "admin/_defs.html" %}
   <main class="admin-login-wrap">
     <section class="admin-login-card">
+      {% include "admin/_card_mark.html" %}
       <p class="admin-kicker">CyberScan</p>
       <h1>One-time admin setup</h1>
       <p class="admin-sub">
@@ -50,5 +48,6 @@
       <p class="admin-back"><a href="/">← Back to site</a></p>
     </section>
   </main>
+  <script src="{{ url_for('static', filename='js/theme-v2.js') }}"></script>
 </body>
 </html>

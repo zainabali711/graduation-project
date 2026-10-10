@@ -1,16 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Admin — CyberScan{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  {% include "admin/_theme_head.html" %}
 </head>
-<body class="admin-body admin-shell">
+<body class="admin-body admin-shell circuit-bg">
+  {% include "admin/_defs.html" %}
   <button
     type="button"
     id="adminNavToggle"
@@ -25,27 +22,37 @@
 
   <aside id="adminSidebar" class="admin-sidebar" aria-hidden="false">
     <a href="{{ url_for('admin.dashboard') }}" class="admin-sidebar-brand">
+      <svg class="brand-mark" viewBox="0 0 48 56" aria-hidden="true">
+        <path fill="url(#v2BrandGrad)" stroke="#ffd1da" stroke-width="2" stroke-linejoin="round" d="M24 3 L42 10 V27 C42 40 33 49 24 53 C15 49 6 40 6 27 V10 Z"/>
+        <path d="M16 28 l6 6 l11 -12" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
       <strong>CyberScan</strong>
       <span>Admin</span>
     </a>
 
     <nav class="admin-sidebar-nav" aria-label="Admin">
       <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-item {% if active_section == 'dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
         Dashboard
       </a>
       <a href="{{ url_for('admin.users') }}" class="admin-nav-item {% if active_section == 'users' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.7 3 2.4 3.5 5.2"/></svg>
         Users
       </a>
       <a href="{{ url_for('admin.url_scans') }}" class="admin-nav-item {% if active_section == 'url_scans' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         URL Scan Logs
       </a>
       <a href="{{ url_for('admin.domain_scans') }}" class="admin-nav-item {% if active_section == 'domain_scans' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
         Domain Scan Logs
       </a>
       <a href="{{ url_for('admin.dns_scans') }}" class="admin-nav-item {% if active_section == 'dns_scans' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h4l2-6 4 12 2-6h4"/><circle cx="12" cy="12" r="9"/></svg>
         DNS Scan Logs
       </a>
       <a href="{{ url_for('admin.logout') }}" class="admin-nav-item admin-nav-logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         Logout
       </a>
     </nav>
@@ -76,5 +83,6 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/theme-v2.js') }}"></script>
 </body>
 </html>
