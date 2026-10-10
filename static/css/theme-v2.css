@@ -1115,12 +1115,24 @@ html[data-theme] .home-elite .elite-cta:hover::after {
 
 html[data-theme] .home-elite .elite-hero-visual {
   min-height: 0;
-  overflow-x: clip;
+  overflow: visible;
 }
 
 html[data-theme] .v2-scene--hero {
   width: 100%;
   height: clamp(380px, 62vh, 600px);
+}
+
+/* The hero stage spills into the column gap and the page margin (never over
+   the copy), and its negative block margins keep the hero's height. */
+@media (min-width: 861px) {
+  html[data-theme] .v2-scene--hero {
+    --v2-zoom: 1.1;
+    --v2-hero-bleed: clamp(0px, (100vw - 1180px) / 2 - 1.25rem, 160px);
+    width: calc(100% + 1.5rem + var(--v2-hero-bleed));
+    height: clamp(480px, 84vh, 780px);
+    margin: -3rem calc(-1 * var(--v2-hero-bleed)) -3rem -1.5rem;
+  }
 }
 
 /* Section heads */
@@ -3241,7 +3253,10 @@ html[data-theme="light"] .auth-elite .form-field .auth-elite-otp-input {
   }
 
   html[data-theme] .v2-scene--hero {
-    height: clamp(300px, 52vh, 420px);
+    --v2-zoom: 1.08;
+    width: calc(100% + 2.5rem);
+    height: clamp(360px, 58vh, 500px);
+    margin-inline: -1.25rem;
   }
 
   html[data-theme] .home-elite .elite-section {
@@ -3288,6 +3303,11 @@ html[data-theme="light"] .auth-elite .form-field .auth-elite-otp-input {
 
   html[data-theme] .v2-scene--logo {
     height: 220px;
+  }
+
+  html[data-theme] .v2-scene--hero {
+    width: calc(100% + 1.75rem);
+    margin-inline: -0.875rem;
   }
 
   html[data-theme] .scan-pill {

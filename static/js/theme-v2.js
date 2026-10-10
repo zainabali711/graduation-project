@@ -121,7 +121,8 @@
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       CX = W / 2; CY = H * 0.47;
-      FOCAL = Math.min(W * 0.95, H) * 1.7;
+      var zoom = parseFloat(getComputedStyle(canvas).getPropertyValue("--v2-zoom")) || 1;
+      FOCAL = Math.min(W * 0.95, H) * 1.7 * zoom;
     }
 
     function rotate(p) {
