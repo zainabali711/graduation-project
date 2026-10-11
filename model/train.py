@@ -170,7 +170,7 @@ def main():
         "benign_count": int((y == 0).sum()),
         "feature_count": int(X.shape[1]),
         "ensemble": "Random Forest + Calibrated SVM (Soft Voting)",
-        "ml_guards": "allowlist + 95% threshold + RF/SVM agree + rich domain features",
+        "ml_guards": "brand allowlist as an input feature (is_known_brand); no probability threshold or RF/SVM agreement rule",
         "dropped_features": ["has_https"],
     }
 
