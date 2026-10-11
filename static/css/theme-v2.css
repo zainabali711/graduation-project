@@ -2064,6 +2064,37 @@ html[data-theme] .donut-wrap.malicious .donut-pct {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
 }
 
+html[data-theme] .donut-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 12%, transparent);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--c);
+}
+
+html[data-theme] .donut-alt::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+html[data-theme] .donut-alt--malicious {
+  --c: var(--v2-malicious);
+}
+
+html[data-theme] .donut-alt--benign {
+  --c: var(--v2-benign);
+}
+
 /* Confidence bars */
 html[data-theme] .confidence-bars,
 html[data-theme] .gauge-card.gauge-hero .confidence-bars {

@@ -14,6 +14,12 @@
 {% set center_label = 'Malicious' if flabel == 'Malicious' else 'Benign' %}
 {% set raw_center = malicious_probability if flabel == 'Malicious' else benign_probability %}
 {% set center_pct = raw_center if raw_center and raw_center >= 1 else (confidence if confidence and confidence >= 1 else 100) %}
+{% set other_label = 'Benign' if flabel == 'Malicious' else 'Malicious' %}
+{% set other_pct = benign_probability if flabel == 'Malicious' else malicious_probability %}
+{% set other_class = 'benign' if flabel == 'Malicious' else 'malicious' %}
+{% macro pct_text(v) -%}
+  {%- if v >= 99.995 -%}&gt;99.99{%- elif v >= 99.5 -%}{{ '%.2f'|format(v) }}{%- else -%}{{ '%.0f'|format(v) }}{%- endif -%}
+{%- endmacro %}
 
 <main class="page-shell">
   <div class="result-page {{ verdict_class }}">
@@ -36,8 +42,9 @@
             </div>
           </div>
           <div class="donut-center">
-            <span class="donut-pct mono">{{ '%.0f'|format(center_pct) }}%</span>
+            <span class="donut-pct mono">{{ pct_text(center_pct) }}%</span>
             <span class="donut-label">{{ center_label }}</span>
+            <span class="donut-alt donut-alt--{{ other_class }} mono">{{ other_label }} {{ '%.2f'|format(other_pct) }}%</span>
           </div>
         </div>
       </div>

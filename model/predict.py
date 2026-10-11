@@ -1,5 +1,6 @@
 """Prediction and explainability logic for URL classification."""
 
+import math
 import os
 
 import joblib
@@ -97,13 +98,51 @@ def _apply_majority_verdict(result: dict) -> dict:
     return result
 
 
+# Each VirusTotal detection after the first doubles the odds that the URL is
+# malicious; a report with no detections halves them; one detection is neutral.
+VT_DETECTION_ODDS_FACTOR = 2.0
+VT_SUSPICIOUS_WEIGHT = 0.5
+# Keeps the ML odds finite when a model outputs exactly 0 or 1.
+ML_PROBABILITY_FLOOR = 0.001
+
+
+def _vt_detections(vt: dict) -> float:
+    return int(vt.get("malicious", 0)) + VT_SUSPICIOUS_WEIGHT * int(vt.get("suspicious", 0))
+
+
+def _vt_odds_multiplier(detections: float) -> float:
+    return VT_DETECTION_ODDS_FACTOR ** (detections - 1)
+
+
+def _fuse_ml_with_virustotal(ml_mal_pct: float, detections: float) -> tuple[float, float]:
+    """Bayesian odds update: posterior odds = ML odds × VirusTotal likelihood ratio.
+
+    Returns (final malicious %, VirusTotal odds multiplier).
+    """
+    p = min(max(ml_mal_pct / 100.0, ML_PROBABILITY_FLOOR), 1 - ML_PROBABILITY_FLOOR)
+    multiplier = _vt_odds_multiplier(detections)
+    log_odds = math.log(p / (1 - p)) + math.log(multiplier)
+    return 100.0 / (1.0 + math.exp(-log_odds)), multiplier
+
+
+def _format_detections(vt: dict, detections: float) -> str:
+    malicious = int(vt.get("malicious", 0))
+    suspicious = int(vt.get("suspicious", 0))
+    count = f"{detections:g} detection{'' if detections == 1 else 's'}"
+    if suspicious:
+        return f"{malicious} malicious + {suspicious} suspicious (counted as ½) = {count}"
+    return count
+
+
 def _attach_virustotal(result: dict, vt: dict) -> dict:
     """
-    Final verdict = ML + VirusTotal when VT is available.
+    Final verdict = ML soft vote updated by VirusTotal evidence.
 
     - Hybrid row stays ML soft-vote majority only.
-    - Final blends ML malicious% with VT positives/total (50/50), then majority.
-    - If VT unavailable → Final stays ML majority; UI shows yellow warning.
+    - When VirusTotal returned engine verdicts, the ML odds are multiplied by
+      2^(detections - 1), where detections = malicious + ½ · suspicious engines.
+      The final label is the side with the higher resulting probability.
+    - If VT is unavailable or has no engine verdicts yet → Final = ML only.
     """
     result = dict(result)
     result["virustotal"] = vt
@@ -111,6 +150,8 @@ def _attach_virustotal(result: dict, vt: dict) -> dict:
     result["ml_is_malicious"] = result["is_malicious"]
     ml_mal = float(result.get("malicious_probability") or 0)
     ml_ben = float(result.get("benign_probability") or 0)
+    result["ml_malicious_probability"] = ml_mal
+    result["ml_benign_probability"] = ml_ben
 
     if not vt.get("available"):
         result["verdict_source"] = "ml_only"
@@ -123,28 +164,33 @@ def _attach_virustotal(result: dict, vt: dict) -> dict:
         )
         return result
 
-    positives = int(vt.get("positives", 0))
-    total = int(vt.get("total_engines", 0))
-    vt_mal = round((positives / total) * 100, 2) if total else 0.0
-    vt_ben = round(100 - vt_mal, 2)
-
-    # 50/50 blend of ML soft-vote and VirusTotal engine ratio
-    combined_mal = round((ml_mal + vt_mal) / 2.0, 2)
-    combined_ben = round(100 - combined_mal, 2)
-    result["malicious_probability"] = combined_mal
-    result["benign_probability"] = combined_ben
-    result["vt_malicious_probability"] = vt_mal
-    result["vt_benign_probability"] = vt_ben
     result["vt_unavailable"] = False
+    total = int(vt.get("total_engines", 0))
+    if total <= 0:
+        result["verdict_source"] = "ml_only"
+        result["correction_note"] = (
+            f"VirusTotal has no engine verdicts for this URL yet, so Final = ML only: "
+            f"Mal {ml_mal:.2f}% vs Ben {ml_ben:.2f}% → {result['final_label']}."
+        )
+        return result
+
+    detections = _vt_detections(vt)
+    final_mal, multiplier = _fuse_ml_with_virustotal(ml_mal, detections)
+    result["malicious_probability"] = round(final_mal, 2)
+    result["benign_probability"] = round(100 - result["malicious_probability"], 2)
+    result["vt_detections"] = detections
+    result["vt_odds_multiplier"] = multiplier
     result["verdict_source"] = "ml_virustotal"
 
     result = _apply_majority_verdict(result)
     result["correction_note"] = (
-        f"Final = ML + VirusTotal "
-        f"(ML Mal {ml_mal:.2f}% / Ben {ml_ben:.2f}% · "
-        f"VT {positives}/{total or '?'} → Mal {vt_mal:.2f}%). "
-        f"Combined Mal {combined_mal:.2f}% vs Ben {combined_ben:.2f}% "
-        f"→ {result['final_label']}."
+        f"Final = ML odds × VirusTotal evidence, where each engine detection doubles "
+        f"the odds and a single detection is neutral. "
+        f"ML Mal {ml_mal:.2f}% / Ben {ml_ben:.2f}% · "
+        f"VirusTotal {_format_detections(vt, detections)} of {total} engines "
+        f"→ odds × 2^({detections:g} − 1) = ×{multiplier:,.4g}. "
+        f"Result Mal {result['malicious_probability']:.2f}% vs "
+        f"Ben {result['benign_probability']:.2f}% → {result['final_label']}."
     )
     return result
 
