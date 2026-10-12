@@ -24,7 +24,7 @@
       <h3 class="about-subhead">URL Scanner</h3>
       <ol class="about-steps">
         <li>Extract lexical + brand/DNS/SSL/WHOIS reputation features</li>
-        <li>Classify with Random Forest + calibrated SVM; apply allowlist and 95% threshold</li>
+        <li>Classify with Random Forest + calibrated SVM; the trusted-brand allowlist is one of the input features</li>
         <li>Combine probabilities via Soft Voting</li>
         <li>Check reputation with VirusTotal and correct clear ML false positives</li>
       </ol>
