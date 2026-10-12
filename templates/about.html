@@ -26,7 +26,7 @@
         <li>Extract lexical + brand/DNS/SSL/WHOIS reputation features</li>
         <li>Classify with Random Forest + calibrated SVM; the trusted-brand allowlist is one of the input features</li>
         <li>Combine probabilities via Soft Voting</li>
-        <li>Check reputation with VirusTotal and correct clear ML false positives</li>
+        <li>Combine with VirusTotal as evidence: each engine detection doubles the ML malicious odds (one detection is neutral, a suspicious verdict counts half); without a VirusTotal result the ML verdict stands</li>
       </ol>
 
       <h3 class="about-subhead">Domain Inspector</h3>
