@@ -99,6 +99,8 @@
             {% set vt_status = vt.get('status') %}
             {% if vt_status == 'submitted' %}
             VirusTotal: No Report Yet
+            {% elif vt_status == 'rejected' %}
+            VirusTotal: URL Not Accepted
             {% elif vt_status == 'rate_limited' %}
             VirusTotal Limit Reached
             {% elif vt_status == 'local_limit' %}

@@ -64,6 +64,10 @@ USER_SUBMITTED_MSG = (
     "The result shown uses the ML model only — scanning this URL again later "
     "may include VirusTotal's verdicts."
 )
+USER_REJECTED_MSG = (
+    "VirusTotal could not accept this URL for analysis (it may not be a valid public "
+    "web address), so there is no VirusTotal result. Showing the ML result only."
+)
 USER_NOT_SUBMITTED_MSG = (
     "VirusTotal has no report for this URL yet, and it could not be submitted now "
     "because this app's shared allowance of 4 VirusTotal requests per minute is in use. "
@@ -341,6 +345,12 @@ def check_url(url: str) -> dict:
                     if submit.status_code == 429:
                         return _rate_limit_result(
                             "VirusTotal submit HTTP 429 QuotaExceeded / rate limit"
+                        )
+                    if submit.status_code == 400:
+                        return _error_result(
+                            "VirusTotal rejected the URL (HTTP 400)",
+                            user_message=USER_REJECTED_MSG,
+                            status="rejected",
                         )
                     if submit.status_code >= 400:
                         return _error_result(
