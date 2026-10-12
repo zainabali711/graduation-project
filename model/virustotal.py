@@ -54,6 +54,21 @@ USER_RATE_LIMIT_MSG = (
     "VirusTotal quota/rate limit reached (free API). "
     "Showing the ML result only — try again later or tomorrow when the quota resets."
 )
+USER_LOCAL_LIMIT_MSG = (
+    "VirusTotal was not contacted for this scan: this app's shared allowance of "
+    "4 VirusTotal requests per minute is in use by recent scans. "
+    "Showing the ML result only — try again in about a minute."
+)
+USER_SUBMITTED_MSG = (
+    "VirusTotal had no report for this URL yet, so it was submitted for analysis. "
+    "The result shown uses the ML model only — scanning this URL again later "
+    "may include VirusTotal's verdicts."
+)
+USER_NOT_SUBMITTED_MSG = (
+    "VirusTotal has no report for this URL yet, and it could not be submitted now "
+    "because this app's shared allowance of 4 VirusTotal requests per minute is in use. "
+    "Showing the ML result only — try again in about a minute."
+)
 API_KEY_ENV_NAME = "VIRUSTOTAL_API_KEY"
 
 # Free public API: 4 requests / minute per key (shared by every user of this app).
@@ -168,9 +183,12 @@ def _cache_set(url_id: str, payload: dict) -> None:
             _result_cache.popitem(last=False)
 
 
-def _wait_for_rate_slot() -> bool:
+def _wait_for_rate_slot(enforce_spacing: bool = True) -> bool:
     """
     Reserve a VT API slot under 4/min.
+
+    enforce_spacing=False skips the 15 s gap (but not the 4-per-minute window),
+    so a URL submit can directly follow the lookup that returned 404.
 
     Returns False (without sleeping long) if the next slot is too far away —
     caller should skip VT instead of blocking the Gunicorn worker.
@@ -183,7 +201,7 @@ def _wait_for_rate_slot() -> bool:
                 _request_times.pop(0)
 
             if len(_request_times) < _MAX_REQUESTS_PER_MINUTE:
-                if _request_times:
+                if _request_times and enforce_spacing:
                     since_last = now - _request_times[-1]
                     if since_last < _MIN_INTERVAL_SEC:
                         wait = _MIN_INTERVAL_SEC - since_last
@@ -208,12 +226,14 @@ def _wait_for_rate_slot() -> bool:
         time.sleep(wait)
 
 
-def _request(session: requests.Session, method: str, url: str, **kwargs):
+def _request(
+    session: requests.Session, method: str, url: str, enforce_spacing: bool = True, **kwargs
+):
     """Rate-limited request; SSL fallback for broken local trust stores.
 
     Returns None when the local rate slot would block too long (skip VT).
     """
-    if not _wait_for_rate_slot():
+    if not _wait_for_rate_slot(enforce_spacing):
         return None
     verify = kwargs.pop("verify", _ssl_verify_setting())
     try:
@@ -236,8 +256,15 @@ def _request(session: requests.Session, method: str, url: str, **kwargs):
 
 
 def _rate_limit_result(detail: str) -> dict:
+    """VirusTotal itself answered HTTP 429."""
     _diag(f"RATE_LIMIT_FAST_FAIL detail={detail}")
-    return _error_result(detail, user_message=USER_RATE_LIMIT_MSG)
+    return _error_result(detail, user_message=USER_RATE_LIMIT_MSG, status="rate_limited")
+
+
+def _local_limit_result(detail: str, user_message: str = USER_LOCAL_LIMIT_MSG) -> dict:
+    """This app's own 4-per-minute limiter skipped the request; VirusTotal refused nothing."""
+    _diag(f"LOCAL_LIMIT_SKIP detail={detail}")
+    return _error_result(detail, user_message=user_message, status="local_limit")
 
 
 def check_url(url: str) -> dict:
@@ -278,7 +305,9 @@ def check_url(url: str) -> dict:
                     headers=headers,
                 )
                 if report is None:
-                    return _rate_limit_result(
+                    if last_exc is not None:
+                        break
+                    return _local_limit_result(
                         "Skipped VirusTotal — local rate slot wait too long"
                     )
                 last_status = report.status_code
@@ -294,16 +323,19 @@ def check_url(url: str) -> dict:
                     )
 
                 if report.status_code == 404:
+                    # Submit only; a fresh analysis is not finished yet, so no waiting here.
                     submit = _request(
                         session,
                         "POST",
                         VT_URL_ENDPOINT,
+                        enforce_spacing=False,
                         headers=headers,
                         data={"url": url},
                     )
                     if submit is None:
-                        return _rate_limit_result(
-                            "Skipped VirusTotal submit — local rate slot wait too long"
+                        return _local_limit_result(
+                            "No VirusTotal report; submit skipped — local rate slot wait too long",
+                            user_message=USER_NOT_SUBMITTED_MSG,
                         )
                     last_status = submit.status_code
                     if submit.status_code == 429:
@@ -314,31 +346,13 @@ def check_url(url: str) -> dict:
                         return _error_result(
                             f"VirusTotal submit failed ({submit.status_code})"
                         )
-
-                    analysis_id = submit.json()["data"]["id"]
-                    analysis = _request(
-                        session,
-                        "GET",
-                        f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
-                        headers=headers,
+                    _diag("SUBMITTED no report yet; ML result only")
+                    return _error_result(
+                        "No VirusTotal report yet; URL submitted for analysis",
+                        user_message=USER_SUBMITTED_MSG,
+                        status="submitted",
                     )
-                    if analysis is None:
-                        return _rate_limit_result(
-                            "Skipped VirusTotal analysis — local rate slot wait too long"
-                        )
-                    last_status = analysis.status_code
-                    if analysis.status_code == 429:
-                        return _rate_limit_result(
-                            "VirusTotal analysis HTTP 429 QuotaExceeded / rate limit"
-                        )
-                    if analysis.status_code >= 400:
-                        return _error_result(
-                            "VirusTotal has no report for this URL yet"
-                        )
-
-                    stats = analysis.json()["data"]["attributes"].get("stats", {})
-                    permalink = f"https://www.virustotal.com/gui/url/{url_id}"
-                elif report.status_code >= 400:
+                if report.status_code >= 400:
                     return _error_result(
                         f"VirusTotal report failed ({report.status_code})"
                     )
@@ -356,6 +370,7 @@ def check_url(url: str) -> dict:
 
                 result = {
                     "available": True,
+                    "status": "ok",
                     "error": None,
                     "error_detail": None,
                     "malicious": malicious,
@@ -394,10 +409,13 @@ def check_url(url: str) -> dict:
     return _error_result(detail)
 
 
-def _error_result(detail: str, user_message: str | None = None) -> dict:
-    _diag(f"UNAVAILABLE error_detail={detail}")
+def _error_result(
+    detail: str, user_message: str | None = None, status: str = "error"
+) -> dict:
+    _diag(f"UNAVAILABLE status={status} error_detail={detail}")
     return {
         "available": False,
+        "status": status,
         "error": user_message or USER_UNAVAILABLE_MSG,
         "error_detail": detail,
         "malicious": 0,

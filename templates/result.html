@@ -96,7 +96,12 @@
         {% else %}
         <div class="vt-unavailable-card" role="status">
           <div class="vt-unavailable-banner">
-            {% if 'busy' in (vt.get('error') or '')|lower or 'rate' in (vt.get('error_detail') or '')|lower %}
+            {% set vt_status = vt.get('status') %}
+            {% if vt_status == 'submitted' %}
+            VirusTotal: No Report Yet
+            {% elif vt_status == 'rate_limited' %}
+            VirusTotal Limit Reached
+            {% elif vt_status == 'local_limit' %}
             VirusTotal Busy
             {% else %}
             VirusTotal Unavailable
